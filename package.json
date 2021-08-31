@@ -1,5 +1,5 @@
 {
-  "name": "@telios2/nebula-drive",
+  "name": "@telios/nebula-drive",
   "version": "1.0.0",
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/telios2/nebula-drive.git"
+    "url": "https://github.com/Telios-org/nebula-drive"
   },
   "publishConfig": {
     "access": "restricted"
@@ -19,9 +19,9 @@
   "author": "Hexadecibal",
   "license": "MIT",
   "bugs": {
-    "url": "https://gitlab.com/telios2/nebula-drive/-/issues"
+    "url": "https://github.com/Telios-org/nebula-drive/issues"
   },
-  "homepage": "https://gitlab.com/telios2/nebula-drive",
+  "homepage": "https://github.com/Telios-org/nebula-drive",
   "dependencies": {
     "@geut/hypercore-promise": "^2.1.1",
     "@hyperswarm/dht": "^5.0.0-rc.2",
