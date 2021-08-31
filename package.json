@@ -1,6 +1,6 @@
 {
   "name": "@telios/nebula-drive",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {

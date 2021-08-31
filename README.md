@@ -68,7 +68,7 @@ await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
 # API/Examples
 
-## `const drive = new Drive(storagePath, [key], [options])`
+### `const drive = new Drive(storagePath, [key], [options])`
 
 Create a drive to be shared over the network which can be replicated and seeded by other peers.
 
@@ -268,7 +268,7 @@ Emitted when a file has been deleted on the drive.
 
 Emitted when there has been an error downloading from the remote drive
 
-## `const collection = await drive.collection(name);`
+### `const collection = await drive.collection(name);`
 
 Creates a new key value collection. All collections are encrypted by default with a secret key (`drive.secret`) that is generated during drive creation.
 
