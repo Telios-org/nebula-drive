@@ -22,8 +22,6 @@
   "dependencies": {
     "@geut/hypercore-promise": "^2.1.1",
     "@hyperswarm/dht": "^5.0.0-rc.2",
-    "@telios2/hypercore-peer-auth": "^1.0.1",
-    "@telios2/multi-hyperbee": "^0.2.11",
     "async": "^3.2.0",
     "blakejs": "^1.1.0",
     "bson": "^4.5.0",
@@ -34,6 +32,7 @@
     "hyperswarm": "git+https://github.com/hyperswarm/hyperswarm#v3",
     "hypertrie": "^5.1.1",
     "memorystream": "^0.3.1",
+    "multi-hyperbee": "git+https://github.com/Telios-org/multi-hyperbee.git",
     "pump": "^3.0.0",
     "random-access-memory": "^3.1.1",
     "rimraf": "^3.0.2",
