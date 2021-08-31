@@ -20,7 +20,7 @@ Nebula drives come with a handful of useful features like:
 ## Installation
 
 ```js
-npm i @telios2/nebula-drive
+npm i @telios/nebula-drive
 ```
 
 ## Usage
