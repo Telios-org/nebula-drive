@@ -1,0 +1,90 @@
+{
+  "name": "@telios2/nebula-drive",
+  "version": "1.0.0",
+  "description": "Real-time distributed file and data storage.",
+  "main": "index.js",
+  "scripts": {
+    "test": "cross-env NODE_ENV=test_sdk tape tests/crypto.test.js | tap-spec && cross-env NODE_ENV=test_sdk tape tests/hyperdb.test.js | tap-spec && cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec",
+    "semantic-release": "semantic-release",
+    "commit": "cz",
+    "debug": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec --nolazy --debug-brk=5858"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/telios2/nebula-drive.git"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "author": "Hexadecibal",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://gitlab.com/telios2/nebula-drive/-/issues"
+  },
+  "homepage": "https://gitlab.com/telios2/nebula-drive",
+  "dependencies": {
+    "@geut/hypercore-promise": "^2.1.1",
+    "@hyperswarm/dht": "^5.0.0-rc.2",
+    "@telios2/hypercore-peer-auth": "^1.0.1",
+    "@telios2/multi-hyperbee": "^0.2.11",
+    "async": "^3.2.0",
+    "blakejs": "^1.1.0",
+    "bson": "^4.5.0",
+    "chokidar": "^3.5.1",
+    "dat-encoding": "^5.0.1",
+    "hyperbee": "^1.5.3",
+    "hypercore": "^9.9.1",
+    "hyperswarm": "github:hyperswarm/hyperswarm#v3",
+    "hypertrie": "^5.1.1",
+    "memorystream": "^0.3.1",
+    "pump": "^3.0.0",
+    "random-access-memory": "^3.1.1",
+    "rimraf": "^3.0.2",
+    "sodium-native": "^3.2.0",
+    "uuid": "^8.2.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^12.0.1",
+    "@commitlint/config-conventional": "^12.0.1",
+    "@semantic-release/git": "^9.0.0",
+    "@semantic-release/gitlab": "^6.0.9",
+    "@semantic-release/npm": "^7.1.0",
+    "cross-env": "^7.0.3",
+    "cz-conventional-changelog": "^3.3.0",
+    "del": "^6.0.0",
+    "husky": "^6.0.0",
+    "semantic-release": "^17.4.2",
+    "tap-spec": "^5.0.0",
+    "tape": "^5.2.2",
+    "tape-promise": "^4.0.0"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "keywords": [
+    "telios",
+    "decentralized",
+    "distributed",
+    "file",
+    "sharing",
+    "drive",
+    "storage",
+    "p2p",
+    "peer-to-peer",
+    "hypercore",
+    "hypercore-protocol",
+    "hyperdrive",
+    "hyperswarm"
+  ],
+  "husky": {
+    "hooks": {
+      "prepare-commit-msg": "exec < /dev/tty && git cz --hook || true"
+    }
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}

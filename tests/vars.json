@@ -1,0 +1,47 @@
+{
+  "ALICE_SB_PUB_KEY": "",
+  "ALICE_SB_PRIV_KEY": "",
+  "ALICE_SIG_PUB_KEY": "",
+  "ALICE_SIG_PRIV_KEY": "",
+  "ALICE_PEER_PUB_KEY": "",
+  "ALICE_DRIVE_KEY": "",
+  "ALICE_DIFF_KEY": "",
+  "ALICE_PEER_SECRET_KEY": "",
+  "ALICE_RECOVERY": "alice@mail.com",
+  "ALICE_MAILBOX": "alice@telios.io",
+  "ALICE_ACCOUNT_SIG": "",
+  "ALICE_ACCOUNT_SERVER_SIG": "",
+  "ALICE_DEVICE_1_ID": "",
+  "ALICE_DEVICE_1_CORE_NAME": "Alice",
+  "ALICE_DEVICE_1_KEY": "",
+  "BOB_SB_PUB_KEY": "",
+  "BOB_SB_PRIV_KEY": "",
+  "BOB_SIG_PUB_KEY": "",
+  "BOB_SIG_PRIV_KEY": "",
+  "TEST_EMAIL_ENCRYPTED_META": "",
+  "TEST_EMAIL": {
+    "to": [{
+      "name": "Alice Tester",
+      "address": "alice@telios.io"
+    }],
+    "from": [{
+      "name": "Bob Tester",
+      "address": "bob@telios.io"
+    }],
+    "subject": "Hello Alice",
+    "text_body": "You're my favorite test person ever",
+    "html_body": "<h1>You're my favorite test person ever</h1>",
+    "attachments": [
+      {
+        "filename": "test.pdf",
+        "fileblob": "--base64-data--",
+        "mimetype": "application/pdf"
+      },
+      {
+        "filename": "test.txt",
+        "fileblob": "--base64-data--",
+        "mimetype": "text/plain"
+      }
+    ]
+  }
+}
