@@ -29,7 +29,7 @@
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.5.3",
     "hypercore": "^9.9.1",
-    "hyperswarm": "^3.0.0-beta3",
+    "hyperswarm": "github:Telios-org/hyperswarm#v3",
     "hypertrie": "^5.1.1",
     "memorystream": "^0.3.1",
     "multi-hyperbee": "github:Telios-org/multi-hyperbee.git",
