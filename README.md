@@ -71,7 +71,7 @@ await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
 # API/Examples
 
-### `const drive = new Drive(storagePath, [key], [options])`
+#### `const drive = new Drive(storagePath, [key], [options])`
 
 Create a drive to be shared over the network which can be replicated and seeded by other peers.
 
@@ -124,11 +124,11 @@ const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, {
 await remoteDrive.ready();
 ```
 
-### `await drive.ready()`
+#### `await drive.ready()`
 
 Initialize the drive and all resources needed.
 
-### `await drive.addPeer(diffKey)`
+#### `await drive.addPeer(diffKey)`
 
 Sync with a remote drive. Drives will begin replicating after adding eachother's diff keys.
 
@@ -157,12 +157,12 @@ await drive1.addPeer(drive2.diffFeedKey)
 await drive2.addPeer(drive1.diffFeedKey)
 ```
 
-### `await drive.removePeer(diffKey)`
+#### `await drive.removePeer(diffKey)`
 
 Stop replicating with another drive peer.
 
 
-### `const file = await drive.writeFile(path, readableStream, [opts])`
+#### `const file = await drive.writeFile(path, readableStream, [opts])`
 
 Write a file from a readable stream. When choosing to encrypt a file, the encryption key will be passed back in the response. Each file is encrypted with a unique key which should be stored spearately.
 
@@ -177,19 +177,19 @@ Options include:
 }
 ```
 
-### `const stream = await drive.readFile(path)`
+#### `const stream = await drive.readFile(path)`
 
 Creates a readable stream of data from the requested file path.
 
 - `path`: Full path where the file resides on the local drive `dir/to/my/file.jpg`
 
-<!-- ### `const readableStream = await drive.fetchFileByHash(fileHash)`
+<!-- #### `const readableStream = await drive.fetchFileByHash(fileHash)`
 
 Similar to how IPFS uses (content addressing)[https://proto.school/content-addressing/03], a drive can fetch a file by the hash of it's contents. If another drive is announcing the file hash you're looking for then a readable stream will be returned.
 
 - `fileHash`: Hash of the file's contents. -->
 
-### `const stream = drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
+#### `const stream = drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
 
 Drives with many files may not want to announce every file by it's hash due to network bandwidth limits. In this case, a drive has the option of sharing it's `discoveryKey` which peers can use to connect to the drive and then make a request file hash request.
 
@@ -199,7 +199,7 @@ Drives with many files may not want to announce every file by it's hash due to n
   - `key`: Encryption key used for deciphering the encrypted stream. This key is returned from the `drive.writeFile` method.
   - `header`: Needed for validating the encrypted stream. This gets returned from `drive.writeFile()`.
 
-### `const stream = drive.decryptFileStream(stream, key, header)`
+#### `const stream = drive.decryptFileStream(stream, key, header)`
 
 If `drive.fetchFileByDriveHash` is returning encrypted data, then `decryptFileStream` will transform that stream and return a new stream of deciphered data.
 
@@ -207,7 +207,7 @@ If `drive.fetchFileByDriveHash` is returning encrypted data, then `decryptFileSt
 - `key`: Encryption key used for deciphering the encrypted stream. This key is returned from the `drive.writeFile` method.
 - `header`: Needed for validating the encrypted stream. This gets returned from `drive.writeFile()`.
 
-### `await drive.fetchFileBatch(files, cb)`
+#### `await drive.fetchFileBatch(files, cb)`
 
 Fetching files as a batch automatically chunks parallel requests in a fixed batch size so a drive can request as many files as it needs without impacting performance.
 
@@ -233,18 +233,18 @@ await drive.fetchFileBatch(files, (stream, file) => {
 
 ```
 
-### `await drive.close()`
+#### `await drive.close()`
 
 Fully close the drive and all of it's resources.
 
-### `drive.on('message', (peerPubKey, socket) => {})`
+#### `drive.on('message', (peerPubKey, socket) => {})`
 
 Emitted when the drive has recieved a message from a peer.
 
 - `peerPubKey`: Public key of the peer that sent the message
 - `socket`: The socket returned on this event can be used as a duplex stream for bi-directional communication with the connecting peer. `socket.write` `socket.on('data, data => {})`
 
-### `drive.on('file-add', (file, enc) => {})`
+#### `drive.on('file-add', (file, enc) => {})`
 
 Emitted when a new file has been added to a local drive.
 
@@ -255,34 +255,34 @@ Emitted when a new file has been added to a local drive.
   - `key`: Key needed to decrypt the file
   - `header`: Needed for validating the encrypted stream
 
-### `drive.on('sync', () => {})` 
+#### `drive.on('sync', () => {})` 
 
 Emitted when the drive has synced any remote data.
 
-### `drive.on('file-sync', (file) => {})`
+#### `drive.on('file-sync', (file) => {})`
 
 Emitted when the drive has synced remote a remote file.
 
-### `drive.on('file-unlink', (file) => {})`
+#### `drive.on('file-unlink', (file) => {})`
 
 Emitted when a file has been deleted on the drive.
 
-### `drive.on('fetch-error', (err) => {})`
+#### `drive.on('fetch-error', (err) => {})`
 
 Emitted when there has been an error downloading from the remote drive
 
-### `const collection = await drive.collection(name);`
+#### `const collection = await drive.collection(name);`
 
 Creates a new key value collection. All collections are encrypted by default with a secret key (`drive.secret`) that is generated during drive creation.
 
-### `await collection.put(key, value)`
+#### `await collection.put(key, value)`
 
 Inserts a new document into the collection. Value should be a JSON object.
 
-### `await collection.get(key)`
+#### `await collection.get(key)`
 
 Get a document by it's key
 
-### `await collection.del(key)`
+#### `await collection.del(key)`
 
 Deletes a document by it's key
