@@ -69,7 +69,7 @@ await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
 ```
 
-# API/Examples
+## API / Examples
 
 #### `const drive = new Drive(storagePath, [key], [options])`
 
