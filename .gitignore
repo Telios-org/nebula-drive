@@ -118,3 +118,4 @@ tests/vars.tmp.json
 tests/data/encrypted_tmp.email
 .tmp
 .vscode
+package-lock.json
