@@ -27,40 +27,40 @@ let hyperFiles = [];
 
 test('Drive - Create', async t => {
 
-  if(fs.existsSync(path.join(__dirname, '/drive'))) {
+  if (fs.existsSync(path.join(__dirname, '/drive'))) {
     await del([
       path.join(__dirname, '/drive')
     ])
   }
 
-  if(fs.existsSync(path.join(__dirname, '/drive3'))) {
+  if (fs.existsSync(path.join(__dirname, '/drive3'))) {
     await del([
       path.join(__dirname, '/drive3')
     ])
   }
 
-  if(fs.existsSync(path.join(__dirname, '/drive4'))) {
+  if (fs.existsSync(path.join(__dirname, '/drive4'))) {
     await del([
       path.join(__dirname, '/drive4')
     ])
   }
 
-  if(fs.existsSync(path.join(__dirname, '/drive5'))) {
+  if (fs.existsSync(path.join(__dirname, '/drive5'))) {
     await del([
       path.join(__dirname, '/drive4')
     ])
   }
 
-  if(fs.existsSync(path.join(__dirname, '/peer-drive'))) {
+  if (fs.existsSync(path.join(__dirname, '/peer-drive'))) {
     await del([
       path.join(__dirname, '/peer-drive')
     ])
   }
 
-  drive = new Drive(__dirname + '/drive', null, { 
-    keyPair, 
+  drive = new Drive(__dirname + '/drive', null, {
+    keyPair,
     swarmOpts: {
-      server: true, 
+      server: true,
       client: true
     }
   });
@@ -87,7 +87,7 @@ test('Drive - Upload Local Encrypted File', async t => {
   try {
     const readStream = fs.createReadStream(path.join(__dirname, '/data/email.eml'));
     const file = await drive.writeFile('/email/rawEmailEncrypted.eml', readStream, { encrypted: true });
-    
+
     hyperFiles.push(file);
 
     t.ok(file.key, `File was encrypted with key`);
@@ -95,12 +95,12 @@ test('Drive - Upload Local Encrypted File', async t => {
     t.ok(file.hash, `Hash of file was returned ${file.hash}`);
     t.ok(file.size, `Size of file in bytes was returned ${file.size}`);
 
-    for(let i=0; i < 20; i++) {
+    for (let i = 0; i < 20; i++) {
       const readStream = fs.createReadStream(path.join(__dirname, '/data/email.eml'));
       const file = await drive.writeFile(`/email/rawEmailEncrypted${i}.eml`, readStream, { encrypted: true });
       t.ok(file);
     }
-  } catch(e) {
+  } catch (e) {
     t.error(e);
   }
 });
@@ -124,13 +124,13 @@ test('Drive - Read Local Encrypted File', async t => {
 
 test('Drive - Create Seed Peer', async t => {
   t.plan(22);
-  
-  drive2 = new Drive(__dirname + '/peer-drive', drive.publicKey, { 
+
+  drive2 = new Drive(__dirname + '/peer-drive', drive.publicKey, {
     keyPair: keyPair2,
     swarmOpts: {
-      server: true, 
+      server: true,
       client: true
-    }  
+    }
   });
 
   await drive2.ready();
@@ -151,14 +151,14 @@ test('Drive - Create Seed Peer', async t => {
 test('Drive - Fetch Files from Remote Drive', async t => {
   t.plan(4);
 
-  drive3 = new Drive(__dirname + '/drive3', null, { 
+  drive3 = new Drive(__dirname + '/drive3', null, {
     keyPair: keyPair3,
     swarmOpts: {
-      server: true, 
+      server: true,
       client: true
     }
   });
-  
+
   await drive3.ready();
 
   await drive3.fetchFileBatch(hyperFiles, (stream, file) => {
@@ -186,17 +186,17 @@ test('Drive - Fetch Files from Remote Drive', async t => {
 test('Drive - Fail to Fetch Files from Remote Drive', async t => {
   t.plan(2);
 
-  const drive4 = new Drive(__dirname + '/drive4', null, { 
+  const drive4 = new Drive(__dirname + '/drive4', null, {
     keyPair: keyPair3,
     swarmOpts: {
-      server: true, 
+      server: true,
       client: true
     }
   });
-  const drive5 = new Drive(__dirname + '/drive5', null, { 
+  const drive5 = new Drive(__dirname + '/drive5', null, {
     keyPair: keyPair4,
     swarmOpts: {
-      server: true, 
+      server: true,
       client: true
     }
   });

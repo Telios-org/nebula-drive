@@ -1,4 +1,5 @@
 const fs = require('fs');
+const getDirName = require('path').dirname;
 const path = require('path');
 const HyperDB = require('./lib/hyperdb');
 const Hyperbee = require('hyperbee');
@@ -54,30 +55,32 @@ class Drive extends HyperDB {
     this._collections = {};
     this._filesDir = path.join(drivePath, `./Files`);
     // Local Key value datastore only. This db does not sync with remote drives.
-    this._localHB = null;  
+    this._localHB = null;
 
-    if(!fs.existsSync(drivePath)) {
+    if (!fs.existsSync(drivePath)) {
       fs.mkdirSync(drivePath);
     }
 
-    if(!fs.existsSync(this._filesDir)) {
+    if (!fs.existsSync(this._filesDir)) {
       fs.mkdirSync(this._filesDir);
     }
 
-    this.requestQueue.on('process-queue', async files => {      
+    this.requestQueue.on('process-queue', async files => {
       this.requestQueue.reset();
-      
+
       await this.fetchFileBatch(files, (stream, file) => {
         return new Promise((resolve, reject) => {
-          const writeStream = fs.createWriteStream(`${this._filesDir}/${file.uuid}`);
-          
+          fs.mkdirSync(getDirName(this._filesDir + file.path), { recursive: true });
+
+          const writeStream = fs.createWriteStream(this._filesDir + file.path);
+
           pump(stream, writeStream, (err) => {
-            if(err) reject(err);
+            if (err) reject(err);
 
             setTimeout(() => {
               this.emit('file-sync', file);
             });
-            
+
             resolve();
           });
         })
@@ -97,7 +100,7 @@ class Drive extends HyperDB {
     this._diffHyperbee = await this.db.getDiff();
     this.diffFeedKey = this._diffHyperbee.feed.key.toString('hex');
 
-    if(this.peerPubKey) {
+    if (this.peerPubKey) {
       this.discoveryKey = createTopicHash(this.peerPubKey).toString('hex');
     } else {
       this.discoveryKey = createTopicHash(this.publicKey).toString('hex');
@@ -107,14 +110,14 @@ class Drive extends HyperDB {
     // that are sharing the same drive secret
     this._collections.files = await this.collection('__File');
 
-    if(this.keyPair) {
+    if (this.keyPair) {
       await this.connect();
     }
 
     const hs = this.db.createHistoryStream({ live: true, gte: -1 });
 
     hs.on('data', async data => {
-      if(data.key !== '__peers') {
+      if (data.key !== '__peers') {
         await this._update(data);
       }
     });
@@ -124,7 +127,7 @@ class Drive extends HyperDB {
 
   // Connect to the Hyperswarm network
   async connect() {
-    if(this._swarm) {
+    if (this._swarm) {
       await this._swarm.close();
     }
 
@@ -148,12 +151,12 @@ class Drive extends HyperDB {
         const fileHash = data.toString('utf-8');
         const file = await this.db.get(fileHash);
 
-        if(!file || file.value.deleted) {
+        if (!file || file.value.deleted) {
           let err = new Error();
           err.message = 'Requested file was not found on drive';
           socket.destroy(err);
         } else {
-          const readStream = fs.createReadStream(path.join(this.drivePath, `./Files/${file.value.uuid}`));
+          const readStream = fs.createReadStream(path.join(this.drivePath, `./Files${file.value.path}`));
           pump(readStream, socket, (err) => {
             // handle done
           });
@@ -180,21 +183,29 @@ class Drive extends HyperDB {
   /**
    * Add a file as a hypercore
    */
-  async writeFile(filePath, readStream, opts = {}) {
-    if(filePath[0] === '/') {
+  async writeFile(path, readStream, opts = {}) {
+    let filePath = path;
+    let dest;
+    const uuid = uuidv4();
+
+    if (filePath[0] === '/') {
       filePath = filePath.slice(1, filePath.length);
     }
 
-    return new Promise(async (resolve, reject) => {
+    if (opts.encrypted) {
+      dest = `${this._filesDir}/${uuid}`;
+    } else {
+      fs.mkdirSync(getDirName(this._filesDir + path), { recursive: true });
+      dest = this._filesDir + path;
+    }
 
-      const uuid = uuidv4();
-      const dest = `${this._filesDir}/${uuid}`;
+    return new Promise(async (resolve, reject) => {
       const pathSeg = filePath.split('/');
       let fullFile = pathSeg[pathSeg.length - 1];
       let fileName;
       let fileExt;
 
-      if(fullFile.indexOf('.') > -1) {
+      if (fullFile.indexOf('.') > -1) {
         fileName = fullFile.split('.')[0];
         fileExt = fullFile.split('.')[1];
       }
@@ -209,6 +220,7 @@ class Drive extends HyperDB {
           uuid,
           size: file.size,
           hash: file.hash,
+          path: `/${uuid}`,
           discovery_key: this.discoveryKey
         });
 
@@ -252,11 +264,12 @@ class Drive extends HyperDB {
           setTimeout(async () => {
             const _hash = Buffer.from(blake.blake2bFinal(hash)).toString('hex');
 
-            if(bytes > 0) {
+            if (bytes > 0) {
               await this.db.put(_hash, {
                 uuid,
                 size: bytes,
                 hash: _hash,
+                path,
                 discovery_key: this.discoveryKey
               });
 
@@ -274,7 +287,7 @@ class Drive extends HyperDB {
 
               this.emit('file-add', fileMeta);
               resolve(fileMeta);
-            
+
             } else {
               reject('No bytes were written.');
             }
@@ -284,10 +297,11 @@ class Drive extends HyperDB {
     });
   }
 
-  async readFile(filePath) {
+  async readFile(path) {
     let file;
+    let filePath = path;
 
-    if(filePath[0] === '/') {
+    if (filePath[0] === '/') {
       filePath = filePath.slice(1, filePath.length);
     }
 
@@ -297,13 +311,13 @@ class Drive extends HyperDB {
       const stream = fs.createReadStream(`${this._filesDir}/${file.uuid}`);
 
       // If key then decipher file
-      if(file.encrypted && file.key && file.header) {
+      if (file.encrypted && file.key && file.header) {
         const fixedChunker = new FixedChunker(stream, MAX_ENCRYPTED_BLOCK_SIZE);
         return Crypto.decryptStream(fixedChunker, file.key, file.header);
       } else {
         return stream
       }
-    } catch(err) {
+    } catch (err) {
       throw err;
     }
   }
@@ -323,35 +337,35 @@ class Drive extends HyperDB {
     const topic = blake.blake2bHex(discoveryKey, null, HASH_OUTPUT_LENGTH);
 
 
-    if(!fileHash || typeof fileHash !== 'string') {
+    if (!fileHash || typeof fileHash !== 'string') {
       return reject('File hash is required before making a request.');
     }
 
-    if(!discoveryKey || typeof discoveryKey !== 'string') {
+    if (!discoveryKey || typeof discoveryKey !== 'string') {
       return reject('Discovery key cannot be null and must be a string.');
     }
 
     this._initFileSwarm(memStream, topic, fileHash, 0, { keyPair });
 
-    if(opts.key && opts.header) {
+    if (opts.key && opts.header) {
       return this.decryptFileStream(memStream, opts.key, opts.header);
     }
-    
+
     return memStream;
   }
 
   async fetchFileBatch(files, cb) {
     const batches = new RequestChunker(files, FILE_BATCH_SIZE);
 
-    for(let batch of batches) {
+    for (let batch of batches) {
       const requests = [];
 
-      for(let file of batch) {
+      for (let file of batch) {
         requests.push(new Promise(async (resolve, reject) => {
-          if(file.discovery_key) {
+          if (file.discovery_key) {
             const keyPair = this._workerKeyPairs.getKeyPair();
             const stream = this.fetchFileByDriveHash(file.discovery_key, file.hash, { key: file.key, header: file.header, keyPair });
-            
+
             await cb(stream, file);
 
             resolve();
@@ -367,7 +381,7 @@ class Drive extends HyperDB {
   }
 
   async _initFileSwarm(stream, topic, fileHash, attempts, { keyPair }) {
-    if(attempts === FILE_RETRY_ATTEMPTS) {
+    if (attempts === FILE_RETRY_ATTEMPTS) {
       const err = new Error('Unable to make a connection or receive data within the allotted time.');
       err.fileHash = fileHash;
       this._workerKeyPairs.release(keyPair.publicKey.toString('hex'));
@@ -381,11 +395,11 @@ class Drive extends HyperDB {
     let streamError = false;
 
     swarm.join(Buffer.from(topic, 'hex'), { server: false, client: true });
-    
+
     swarm.on('connection', async (socket, info) => {
       receivedData = false;
 
-      if(!connected) {
+      if (!connected) {
         connected = true;
 
         // Tell the host drive which file we want
@@ -397,7 +411,7 @@ class Drive extends HyperDB {
         });
 
         socket.once('end', () => {
-          if(receivedData) {
+          if (receivedData) {
             this._workerKeyPairs.release(keyPair.publicKey.toString('hex'));
             stream.end();
             swarm.destroy();
@@ -412,7 +426,7 @@ class Drive extends HyperDB {
     });
 
     setTimeout(async () => {
-      if(!connected || streamError || !receivedData && attempts < FILE_RETRY_ATTEMPTS) {
+      if (!connected || streamError || !receivedData && attempts < FILE_RETRY_ATTEMPTS) {
         attempts += 1;
         await swarm.leave(topic);
         await swarm.destroy();
@@ -423,20 +437,26 @@ class Drive extends HyperDB {
   }
 
   async unlink(filePath) {
-    if(filePath[0] === '/') {
-      filePath = filePath.slice(1, filePath.length);
+    let fp = filePath;
+
+    if (fp[0] === '/') {
+      fp = filePath.slice(1, fp.length);
     }
 
     try {
-      let file = await this._collections.files.get(filePath);
+      let file = await this._collections.files.get(fp);
 
-      if(!file) {
+      if (!file) {
         return;
       }
 
-      fs.unlinkSync(path.join(this._filesDir, `/${file.uuid}`));
+      if (file.encrypted) {
+        fp = file.uuid;
+      }
 
-      await this._collections.files.put(filePath, {
+      fs.unlinkSync(path.join(this._filesDir, `/${fp}`));
+
+      await this._collections.files.put(fp, {
         uuid: file.uuid,
         deleted: true
       });
@@ -448,7 +468,7 @@ class Drive extends HyperDB {
       });
 
       this.emit('file-unlink', file);
-    } catch(err) {
+    } catch (err) {
       throw err;
     }
   }
@@ -491,7 +511,7 @@ class Drive extends HyperDB {
               this._remoteCores[data.key] = core;
               await core.ready();
               res();
-            } catch(err) {
+            } catch (err) {
               rej(err);
             }
           });
@@ -502,7 +522,7 @@ class Drive extends HyperDB {
         try {
           await Promise.all(cores);
           resolve();
-        } catch(err) {
+        } catch (err) {
           reject(err);
         }
       });
@@ -513,65 +533,65 @@ class Drive extends HyperDB {
     let lastSeq;
 
     const pubKeyHash = createTopicHash(this.publicKey).toString('hex');
-    
+
     lastSeq = await this._localHB.get(`lastSeq`);
-    if(!lastSeq) lastSeq = { value: { seq: null }};
-  
-    if(
+    if (!lastSeq) lastSeq = { value: { seq: null } };
+
+    if (
       data.type === 'put' &&
       !data.value.deleted &&
       data.value.discovery_key !== pubKeyHash &&
       lastSeq.value.seq !== data.seq
-      ) {
+    ) {
 
       this.emit('sync');
 
-      if(data.value.hash) {
+      if (data.value.hash) {
         try {
           await this._localHB.put(`lastSeq`, { seq: data.seq });
           this.requestQueue.addFile(data.value);
-        } catch(err) {
+        } catch (err) {
           throw err;
         }
       }
     }
 
-    if(
+    if (
       data.type === 'put' &&
       data.value.deleted &&
       data.value.discovery_key !== pubKeyHash
-      ) {
-        try {
-          const filePath = path.join(this._filesDir, `/${data.value.uuid}`);
-          if(fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+    ) {
+      try {
+        const filePath = path.join(this._filesDir, `/${data.value.uuid}`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
 
-            setTimeout(() => {
-              this.emit('file-unlink', data.value);
-            });
-          }
-        } catch(err) {
-          throw err;
+          setTimeout(() => {
+            this.emit('file-unlink', data.value);
+          });
         }
+      } catch (err) {
+        throw err;
+      }
     }
   }
 
   async _getRemoteCore(key) {
-    return new Promise(async(resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let core;
 
       try {
         // Check remote core cache to see if this feed is already opened
         const coreFromCoreMap = this._remoteCores[key];
-        if(coreFromCoreMap) {
+        if (coreFromCoreMap) {
           return resolve(coreFromCoreMap);
         }
 
         // Check remote core storage to see if this remote core has been set.
         const coreFromStorage = await this.remoteHypercores.get(key);
-        if(coreFromStorage) {
+        if (coreFromStorage) {
           const coreInterval = setInterval(() => {
-            if(this._remoteCores[key]) {
+            if (this._remoteCores[key]) {
               clearInterval(coreInterval);
               return resolve(this._remoteCores[key]);
             }
@@ -584,7 +604,7 @@ class Drive extends HyperDB {
           await core.ready();
           resolve(core);
         }
-      } catch(err) {
+      } catch (err) {
         reject(err);
       }
     });
@@ -612,7 +632,7 @@ class Drive extends HyperDB {
     await this.db.feed.close();
     await this.db.close();
 
-    for(let core in this._remoteCores) {
+    for (let core in this._remoteCores) {
       cores.push(new Promise((resolve, reject) => {
         setTimeout(async () => {
           await this._remoteCores[core].close();
@@ -646,7 +666,7 @@ async function auditFile(stream, remoteHash) {
     stream.on('end', () => {
       const localHash = Buffer.from(blake.blake2bFinal(hash)).toString('hex');
 
-      if(localHash === remoteHash)
+      if (localHash === remoteHash)
         return resolve()
 
       reject('Hashes do not match');
@@ -655,12 +675,12 @@ async function auditFile(stream, remoteHash) {
 }
 
 
-const getAllFiles = function(dirPath, arrayOfFiles) {
+const getAllFiles = function (dirPath, arrayOfFiles) {
   files = fs.readdirSync(dirPath)
 
   arrayOfFiles = arrayOfFiles || []
 
-  files.forEach(function(file) {
+  files.forEach(function (file) {
     if (fs.statSync(dirPath + "/" + file).isDirectory()) {
       arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles)
     } else {
@@ -671,12 +691,12 @@ const getAllFiles = function(dirPath, arrayOfFiles) {
   return arrayOfFiles
 }
 
-const getTotalSize = function(directoryPath) {
+const getTotalSize = function (directoryPath) {
   const arrayOfFiles = getAllFiles(directoryPath)
 
   let totalSize = 0
 
-  arrayOfFiles.forEach(function(filePath) {
+  arrayOfFiles.forEach(function (filePath) {
     totalSize += fs.statSync(filePath).size
   })
 
