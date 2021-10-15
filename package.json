@@ -21,7 +21,6 @@
   "homepage": "https://github.com/Telios-org/nebula-drive",
   "dependencies": {
     "@geut/hypercore-promise": "^2.1.1",
-    "@hyperswarm/dht": "^5.0.0-rc.2",
     "async": "^3.2.0",
     "blakejs": "^1.1.0",
     "bson": "^4.5.0",
@@ -29,7 +28,7 @@
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.5.3",
     "hypercore": "^9.9.1",
-    "hyperswarm": "git+https://github.com/Telios-org/hyperswarm#v3",
+    "hyperswarm": "^3.0.0-rc.0",
     "hypertrie": "^5.1.1",
     "memorystream": "^0.3.1",
     "multi-hyperbee": "git+https://github.com/Telios-org/multi-hyperbee",

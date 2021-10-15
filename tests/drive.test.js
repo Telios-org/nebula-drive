@@ -238,6 +238,26 @@ test('Drive - Unlink Local File', async t => {
   await drive.unlink('/email/rawEmailEncrypted.eml');
 });
 
+
+test('Drive - Receive messages', async t => {
+  t.plan(1);
+
+  drive.on('message', (publicKey, data) => {
+    const msg = JSON.parse(data.toString());
+    t.ok(msg, 'Drive can receive messages.');
+  });
+
+  const node = new DHT();
+  const noiseSocket = node.connect(keyPair.publicKey);
+
+  noiseSocket.on('open', function () {
+    noiseSocket.end(JSON.stringify({
+      type: 'newMail',
+      meta: 'meta mail message'
+    }));
+  });
+});
+
 test('Drive - Get total size in bytes', t => {
   t.plan(3);
 
