@@ -214,11 +214,6 @@ test('Drive - Fail to Fetch Files from Remote Drive', async t => {
     t.ok(err.message, `Error has message: ${err.message}`);
     t.equals(file.hash, err.fileHash, `Failed file hash matches the has in the request,`);
   });
-
-  t.teardown(async () => {
-    await drive4.close();
-    await drive5.close();
-  });
 });
 
 test('Drive - Unlink Local File', async t => {
