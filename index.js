@@ -1,9 +1,10 @@
 const fs = require('fs');
 const getDirName = require('path').dirname;
 const path = require('path');
-const HyperDB = require('./lib/hyperdb');
+const Database = require('./lib/database');
 const Hyperbee = require('hyperbee');
 const Hypercore = require('./lib/core');
+const Corestore = require('corestore');
 const pump = require('pump');
 const Crypto = require('./lib/crypto');
 const Swarm = require('./lib/swarm');
@@ -26,9 +27,12 @@ const FILE_RETRY_ATTEMPTS = 3;
 const FILE_BATCH_SIZE = 10;
 
 
-class Drive extends HyperDB {
+class Drive extends Database {
   constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, secret, fileTimeout }) {
     super(path.join(drivePath, './Cores/Peer/'), secret);
+
+    this.store = new Corestore(path.join(this.drivePath, './Cores'));
+
 
     this.drivePath = drivePath;
     this.swarmOpts = swarmOpts;
@@ -90,37 +94,37 @@ class Drive extends HyperDB {
 
   async ready() {
     // Init Drive's Hypercore
-    this.feed = Hypercore(path.join(this.drivePath, './Cores/Local'), { persist: true, server: true, client: false });
-    await this.feed.ready();
+    // this.feed = Hypercore(path.join(this.drivePath, './Cores/Local'), { persist: true, server: true, client: false });
+    // await this.feed.ready();
 
-    await this.db.ready();
-    await this._bootstrap();
+    // await this.db.ready();
+    // await this._bootstrap();
 
-    this.publicKey = this.db.feed.key.toString('hex');
-    this._diffHyperbee = await this.db.getDiff();
-    this.diffFeedKey = this._diffHyperbee.feed.key.toString('hex');
+    // this.publicKey = this.db.feed.key.toString('hex');
+    // this._diffHyperbee = await this.db.getDiff();
+    // this.diffFeedKey = this._diffHyperbee.feed.key.toString('hex');
 
-    if (this.peerPubKey) {
-      this.discoveryKey = createTopicHash(this.peerPubKey).toString('hex');
-    } else {
-      this.discoveryKey = createTopicHash(this.publicKey).toString('hex');
-    }
+    // if (this.peerPubKey) {
+    //   this.discoveryKey = createTopicHash(this.peerPubKey).toString('hex');
+    // } else {
+    //   this.discoveryKey = createTopicHash(this.publicKey).toString('hex');
+    // }
 
-    // Data here can only be read by peer drives
-    // that are sharing the same drive secret
-    this._collections.files = await this.collection('__File');
+    // // Data here can only be read by peer drives
+    // // that are sharing the same drive secret
+    // this._collections.files = await this.collection('__File');
 
-    if (this.keyPair) {
-      await this.connect();
-    }
+    // if (this.keyPair) {
+    //   await this.connect();
+    // }
 
-    const hs = this.db.createHistoryStream({ live: true, gte: -1 });
+    // const hs = this.db.createHistoryStream({ live: true, gte: -1 });
 
-    hs.on('data', async data => {
-      if (data.key !== '__peers') {
-        await this._update(data);
-      }
-    });
+    // hs.on('data', async data => {
+    //   if (data.key !== '__peers') {
+    //     await this._update(data);
+    //   }
+    // });
 
     this.opened = true;
   }
