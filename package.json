@@ -4,7 +4,7 @@
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test_sdk tape tests/database.test.js | tap-spec",
+    "test": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec",
     "semantic-release": "semantic-release",
     "commit": "cz",
     "debug": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec --nolazy --debug-brk=5858"
@@ -22,15 +22,16 @@
   "dependencies": {
     "@geut/hypercore-promise": "^2.1.1",
     "async": "^3.2.0",
-    "autobase": "latest",
+    "autobase": "^1.0.0-alpha.0",
     "blakejs": "^1.1.0",
     "bson": "^4.5.0",
     "chokidar": "^3.5.1",
-    "corestore": "next",
+    "corestore": "^6.0.0-alpha.3",
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.6.3",
+    "hypercore": "^10.0.0-alpha.7",
     "hypercore-encrypt": "^1.0.6",
-    "hyperswarm": "next",
+    "hyperswarm": "^3.0.0",
     "hypertrie": "^5.1.1",
     "memorystream": "^0.3.1",
     "pump": "^3.0.0",

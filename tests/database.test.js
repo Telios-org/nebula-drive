@@ -24,10 +24,10 @@ test('Database - Test put/get', async t => {
   t.plan(1)
 
   try {
-    const collection = await database.collection('testsub')
-    await collection.put('hi', { hello: 'world' })
+    const collection = await database.collection('foobar')
+    await collection.put('yo', { hello: 'world' })
 
-    const item = await collection.get('hi')
+    const item = await collection.get('yo')
 
     t.equals(item.value.hello, 'world')
   } catch (err) {
