@@ -195,9 +195,6 @@ class Drive extends EventEmitter {
     await this.database.removeInput(peerKey)
   }
 
-  /**
-   * Add a file as a hypercore
-   */
   async writeFile(path, readStream, opts = {}) {
     let filePath = path
     let dest
