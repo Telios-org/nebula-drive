@@ -14,11 +14,11 @@ Nebula drives come with a handful of useful features like:
 ### TODOs:
 - [x] Connect to drives behind corporate firewalls and mobile networks
 - [x] Create and share key value databases between peers
+- [x] Upgrade multiwriter to Hypercore v10
 - [ ] Share files by only their hash much like [IPFS](https://docs.ipfs.io/concepts/how-ipfs-works/)
 - [ ] Upgrade access control to limit sharing by a peer's public key
 - [ ] Turn an existing directory into a drive and watch for changes
 - [ ] Upgrade collections to be closer to MongoDB with [Hyperbeedeebee](https://github.com/RangerMauve/hyperbeedeebee)
-- [ ] Upgrade multiwriter to Hypercore v10
 
 ## Installation
 
@@ -29,20 +29,23 @@ npm i @telios/nebula-drive
 ## Usage
 
 ```js
-const Drive = require('nebula-drive');
+const Drive = require('nebula-drive')
+
+const encryptionKey = Buffer.alloc(32, 'hello world')
 
 const localDrive = new Drive(__dirname + "/drive", null, { 
   keyPair,
+  encryptionKey,
   swarmOpts: {
     server: true,
     client: true
   }
-});
+})
 
-await localDrive.ready();
+await localDrive.ready()
 
 // Key to be shared with other devices or services that want to seed this drive
-const drivePubKey = localDrive.publicKey;
+const drivePubKey = localDrive.publicKey
 
 // Clone a remote drive
 const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, { 
@@ -51,21 +54,16 @@ const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, {
     server: true,
     client: true
   }
-});
+})
 
-await remoteDrive.ready();
-
-
-// Both drives then add eachother as peers to begin replicating
-await remoteDrive.addPeer(localDrive.diffFeedKey);
-await localDrive.addPeer(remoteDrive.diffFeedKey);
+await remoteDrive.ready()
 
 
 localDrive.on('file-sync', file => {
   // Local drive has synced somefile.json from remote drive
-});
+})
 
-await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream);
+await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
 ```
 
@@ -82,13 +80,12 @@ Options include:
 
 ```js
 {
-  // ed25519 keypair
-  keyPair: {
+  encryptionKey,  // optionally pass an encryption key to enable block encryption
+  keyPair: { // ed25519 keypair
     publicKey, 
     secretKey
   },
-  // Set server to true to start this drive as a server and announce its public key to the network
-  swarmOpts: {
+  swarmOpts: { // Set server to true to start this drive as a server and announce its public key to the network
     server: true | false,
     client: true | false
   }
@@ -96,7 +93,7 @@ Options include:
 ```
 
 ```js
-const Drive = require('nebula-drive');
+const Drive = require('nebula-drive')
 
 // Create a new local drive.
 const localDrive = new Drive(__dirname + "/drive", null, { 
@@ -105,12 +102,12 @@ const localDrive = new Drive(__dirname + "/drive", null, {
     server: true,
     client: true
   }
-});
+})
 
-await localDrive.ready();
+await localDrive.ready()
 
 // Key to be shared with other devices or services that want to seed this drive
-const drivePubKey = localDrive.publicKey;
+const drivePubKey = localDrive.publicKey
 
 // Clone a remote drive
 const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, { 
@@ -119,18 +116,18 @@ const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, {
     server: true,
     client: true
   }
-});
+})
 
-await remoteDrive.ready();
+await remoteDrive.ready()
 ```
 
 #### `await drive.ready()`
 
 Initialize the drive and all resources needed.
 
-#### `await drive.addPeer(diffKey)`
+#### `await drive.addPeer(publicKey)`
 
-Sync with a remote drive. Drives will begin replicating after adding eachother's diff keys.
+Adds a remote drive as a new writer. After a peer has been added, the drive will automatically try to reconnect to this peer after every restart.
 
 Example Usage:
 
@@ -153,11 +150,11 @@ const drive2 = new Drive(__dirname + "/drive", null, {
   }
 })
 
-await drive1.addPeer(drive2.diffFeedKey)
-await drive2.addPeer(drive1.diffFeedKey)
+
+await drive2.addPeer(drive1.publicKey)
 ```
 
-#### `await drive.removePeer(diffKey)`
+#### `await drive.removePeer(publicKey)`
 
 Stop replicating with another drive peer.
 
@@ -224,12 +221,12 @@ Example Usage:
 
 await drive.fetchFileBatch(files, (stream, file) => {
   return new Promise((resolve, reject) => {
-    const writeStream = fs.createWriteStream(`./${file.path}`);
+    const writeStream = fs.createWriteStream(`./${file.path}`)
     pump(stream, writeStream, (err) => {
-      resolve();
-    });
-  });
-});
+      resolve()
+    })
+  })
+})
 
 ```
 
@@ -271,7 +268,7 @@ Emitted when a file has been deleted on the drive.
 
 Emitted when there has been an error downloading from the remote drive
 
-#### `const collection = await drive.collection(name);`
+#### `const collection = await drive.collection(name)`
 
 Creates a new key value collection. All collections are encrypted by default with a secret key (`drive.secret`) that is generated during drive creation.
 
