@@ -25,11 +25,11 @@ test('Database - Test put/get', async t => {
 
   try {
     const collection = await database.collection('foobar')
-    await collection.put('yo', { hello: 'world' })
+    await collection.put('foo', { hello: 'bar' })
 
-    const item = await collection.get('yo')
+    const item = await collection.get('foo')
 
-    t.equals(item.value.hello, 'world')
+    t.equals(item.value.hello, 'bar')
   } catch (err) {
     t.error(err)
   }

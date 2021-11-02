@@ -4,7 +4,7 @@
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec",
+    "test": "cross-env NODE_ENV=test_sdk tape tests/autobee.test.js | tap-spec",
     "semantic-release": "semantic-release",
     "commit": "cz",
     "debug": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec --nolazy --debug-brk=5858"
@@ -29,7 +29,8 @@
     "corestore": "^6.0.0-alpha.3",
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.6.3",
-    "hypercore": "^10.0.0-alpha.7",
+    "hyperbeedeebee": "^1.0.1",
+    "hypercore": "^10.0.0-alpha.9",
     "hypercore-encrypt": "^1.0.6",
     "hyperswarm": "^3.0.0",
     "hypertrie": "^5.1.1",

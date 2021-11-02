@@ -35,27 +35,18 @@ class Drive extends EventEmitter {
     this.drivePath = drivePath
     this.swarmOpts = swarmOpts
     this.publicKey = null
-    // Key used to clone and seed drive. Should only be shared with trusted sources
-    this.peerPubKey = peerPubKey
-    // ed25519 keypair to listen on
-    this.keyPair = keyPair
+    this.peerPubKey = peerPubKey // Key used to clone and seed drive. Should only be shared with trusted sources
+    this.keyPair = keyPair // ed25519 keypair to listen on
     this.writable = writable
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
 
-    // this._id = uuidv4()
-    // this._store = new Corestore(path.join(drivePath, `./Store`))
-    // this._localCore = this._store.namespace('localStore')
-    // this._sharedStore = this._store.namespace('sharedStore')
     this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
-    this._remoteCores = {}
     this._swarm = null
-    this._diffHyperbee = null
     this._workerKeyPairs = new WorkerKeyPairs(FILE_BATCH_SIZE)
     this._collections = {}
     this._filesDir = path.join(drivePath, `./Files`)
-    // Local Key value datastore only. This db does not sync with remote drives.
-    this._localHB = null
+    this._localHB = null // Local Key value datastore only. This db does not sync with remote drives.
     this._lastSeq = null
 
     if (!fs.existsSync(drivePath)) {
@@ -92,7 +83,7 @@ class Drive extends EventEmitter {
   async ready() {
     await this._bootstrap()
 
-    this.publicKey = this.database.metaCore.key.toString('hex')
+    this.publicKey = this.database.localMetaCore.key.toString('hex')
 
     if (this.peerPubKey) {
       this.discoveryKey = createTopicHash(this.peerPubKey).toString('hex')
@@ -109,22 +100,36 @@ class Drive extends EventEmitter {
     }
 
     this._lastSeq = await this._localHB.get('lastSeq')
-    const hs = this.metadb.createHistoryStream({ live: true, gte: this._lastSeq ? -1 : 1 })
 
-    // stream.on('data', data => {
-    //   this.emit('sync', data)
-    // })
+    const stream = this.database.metaBase.createReadStream({ live: true })
 
-    hs.on('data', async data => {
-      if (data.key !== '__encryptedCore') {
-        await this._update(data)
+    stream.on('data', async data => {
+      const node = {
+        ...JSON.parse(data.value.toString()),
+        seq: data.seq
+      }
+
+      if (
+        node.key !== '__peers' && !this._lastSeq ||
+        node.key !== '__peers' && this._lastSeq && data.seq > this._lastSeq
+      ) {
+        await this._update(node)
       }
     })
 
-    // const stream = this.db.createReadStream({ live: true });
+    // This stopped streaming async updates after migrating to autobase
+    // const hs = this.metadb.createHistoryStream({ live: true, gte: this._lastSeq ? -1 : 1 })
 
-    // stream.on('data', data => {
-    //   this.emit('sync', JSON.parse(data.value.toString()))
+    // hs.on('data', async data => {
+    //   this.emit('sync', data)
+    //   if (data.key !== '__peers') {
+    //     data.value = JSON.parse(data.value).value
+    //     await this._update(data)
+    //   }
+    // })
+
+    // hs.on('error', err => {
+    //   // catch get out of bounds errors
     // })
 
     this.opened = true
@@ -139,7 +144,6 @@ class Drive extends EventEmitter {
     this._swarm = new Swarm({
       keyPair: this.keyPair,
       workerKeyPairs: this._workerKeyPairs.keyPairs,
-      db: this.db,
       topic: this.discoveryKey,
       publicKey: this.peerPubKey || this.publicKey,
       isServer: this.swarmOpts.server,
@@ -177,6 +181,12 @@ class Drive extends EventEmitter {
   }
 
   async addPeer(peerKey) {
+    const remotePeers = await this._localHB.get('remotePeers')
+
+    const peers = [...remotePeers.value, peerKey]
+
+    await this._localHB.put('remotePeers', peers)
+
     await this.database.addInput(peerKey)
   }
 
@@ -495,78 +505,21 @@ class Drive extends EventEmitter {
       valueEncoding: 'json'
     })
 
-    const remotePeers = await this._localHB.get('remotePeers')
-
-    const peers = []
-
-    if (remotePeers && remotePeers.value) {
-      for await (const key of peers.value) {
-        const core = await this._store.get(key)
-        peers.push(core)
-      }
-    }
-
-    this.database = new Database(this.drivePath, { 
-      peers, 
+    this.database = new Database(this.drivePath, {
+      keyPair: this.keyPair,
       encryptionKey: this.encryptionKey,
-      peerPubKey: this.peerPubKey
+      peerPubKey: this.peerPubKey,
+      acl: this.swarmOpts.acl
     })
 
     await this.database.ready()
 
     this.db = this.database.bee
     this.metadb = this.database.metadb
-
-    // const core = Hypercore(path.join(this.drivePath, './Cores/Remote'), { persist: true, server: false, client: false })
-    // await core.ready()
-
-    // this.remoteHypercores = new Hyperbee(core, {
-    //   keyEncoding: 'utf-8',
-    //   valueEncoding: 'json'
-    // })
-
-    // this._localHB = new Hyperbee(this.feed, {
-    //   keyEncoding: 'utf-8',
-    //   valueEncoding: 'json'
-    // })
-
-    // return new Promise((resolve, reject) => {
-    //   const cores = []
-    //   const stream = this.remoteHypercores.createReadStream()
-    //   // Turn on remote cores when starting up local drive
-    //   stream.on('data', (data) => {
-    //     cores.push(new Promise((res, rej) => {
-    //       setTimeout(async () => {
-    //         try {
-    //           const core = Hypercore(path.join(this.drivePath, `./${data.key}`), {
-    //             persist: true,
-    //             sparse: false,
-    //             server: true,
-    //             client: true
-    //           })
-
-    //           this._remoteCores[data.key] = core
-    //           await core.ready()
-    //           res()
-    //         } catch (err) {
-    //           rej(err)
-    //         }
-    //       })
-    //     }))
-    //   })
-
-    //   stream.on('end', async () => {
-    //     try {
-    //       await Promise.all(cores)
-    //       resolve()
-    //     } catch (err) {
-    //       reject(err)
-    //     }
-    //   })
-    // })
   }
 
   async _update(data) {
+
     let lastSeq
     lastSeq = await this._localHB.get(`lastSeq`)
 
@@ -578,7 +531,6 @@ class Drive extends EventEmitter {
       data.value.peer_key !== this.keyPair.publicKey.toString('hex') &&
       lastSeq.value.seq !== data.seq
     ) {
-      
       this.emit('sync')
 
       if (data.value.hash) {
@@ -611,40 +563,6 @@ class Drive extends EventEmitter {
     }
   }
 
-  // async _getRemoteCore(key) {
-  //   return new Promise(async (resolve, reject) => {
-  //     let core
-
-  //     try {
-  //       // Check remote core cache to see if this feed is already opened
-  //       const coreFromCoreMap = this._remoteCores[key]
-  //       if (coreFromCoreMap) {
-  //         return resolve(coreFromCoreMap)
-  //       }
-
-  //       // Check remote core storage to see if this remote core has been set.
-  //       const coreFromStorage = await this.remoteHypercores.get(key)
-  //       if (coreFromStorage) {
-  //         const coreInterval = setInterval(() => {
-  //           if (this._remoteCores[key]) {
-  //             clearInterval(coreInterval)
-  //             return resolve(this._remoteCores[key])
-  //           }
-  //         }, 100)
-  //       } else {
-  //         // Create a new remote core
-  //         await this.remoteHypercores.put(key, { announce: true })
-  //         core = Hypercore(path.join(this.drivePath, `./${key}`), { persist: true, sparse: true, server: true, client: true })
-  //         this._remoteCores[key] = core
-  //         await core.ready()
-  //         resolve(core)
-  //       }
-  //     } catch (err) {
-  //       reject(err)
-  //     }
-  //   })
-  // }
-
   info() {
     const bytes = getTotalSize(this.drivePath)
     return {
@@ -656,27 +574,9 @@ class Drive extends EventEmitter {
    * Close drive and disconnect from all Hyperswarm topics
    */
   async close() {
-    const cores = []
-
-    process.on("uncaughtException", async (err) => {
-      // catch close errors
-    })
-
     await this._swarm.close()
-    // await this.feed.close()
-    await this.db.feed.close()
-    await this.db.close()
-
-    for (let core in this._remoteCores) {
-      cores.push(new Promise((resolve, reject) => {
-        setTimeout(async () => {
-          await this._remoteCores[core].close()
-          resolve()
-        })
-      }))
-    }
-
-    await Promise.all(cores)
+    await this.database.close()
+    await this._localCore.close()
 
     this.openend = false
   }
