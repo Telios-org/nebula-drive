@@ -1,6 +1,6 @@
 {
   "name": "@telios/nebula-drive",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {
@@ -26,14 +26,10 @@
     "blakejs": "^1.1.0",
     "bson": "^4.5.0",
     "chokidar": "^3.5.1",
-    "corestore": "^6.0.0-alpha.3",
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.6.3",
-    "hyperbeedeebee": "^1.0.1",
     "hypercore": "^10.0.0-alpha.9",
-    "hypercore-encrypt": "^1.0.6",
     "hyperswarm": "^3.0.0",
-    "hypertrie": "^5.1.1",
     "memorystream": "^0.3.1",
     "pump": "^3.0.0",
     "random-access-memory": "^3.1.1",

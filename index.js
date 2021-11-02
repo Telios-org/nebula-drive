@@ -511,7 +511,7 @@ class Drive extends EventEmitter {
 
     await this.database.ready()
 
-    this.db = this.database.bee
+    this.db = this.database
     this.metadb = this.database.metadb
   }
 

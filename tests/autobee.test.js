@@ -1,9 +1,7 @@
 const tape = require('tape');
 const Hypercore = require('../lib/core');
-const Hyperbee = require('hyperbee');
 const Autobase = require('autobase');
 const Autobee = require('../lib/autobee');
-const {DB} = require('hyperbeedeebee')
 const ram = require('random-access-memory');
 
 tape('Autobee - create local writer', async t => {

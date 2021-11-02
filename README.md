@@ -268,9 +268,9 @@ Emitted when a file has been deleted on the drive.
 
 Emitted when there has been an error downloading from the remote drive
 
-#### `const collection = await drive.collection(name)`
+#### `const collection = await drive.db.collection(name)`
 
-Creates a new key value collection. All collections are encrypted by default with a secret key (`drive.secret`) that is generated during drive creation.
+Creates a new key value collection. Collections are encrypted with the drive's `encryptionKey` (`drive.encryptionKey`) when the key is passed in during initialization.
 
 #### `await collection.put(key, value)`
 
