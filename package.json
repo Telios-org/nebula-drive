@@ -4,7 +4,7 @@
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test_sdk tape tests/autobee.test.js | tap-spec",
+    "test": "cross-env NODE_ENV=test_sdk tape tests/*.test.js | tap-spec",
     "semantic-release": "semantic-release",
     "commit": "cz",
     "debug": "cross-env NODE_ENV=test_sdk tape tests/drive.test.js | tap-spec --nolazy --debug-brk=5858"
