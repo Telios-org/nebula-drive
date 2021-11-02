@@ -80,7 +80,7 @@ Options include:
 
 ```js
 {
-  encryptionKey,  // optionally pass an encryption key to enable block encryption
+  encryptionKey,  // optionally pass an encryption key to encrypt the drive's database
   keyPair: { // ed25519 keypair
     publicKey, 
     secretKey
