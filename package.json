@@ -28,7 +28,7 @@
     "chokidar": "^3.5.1",
     "dat-encoding": "^5.0.1",
     "hyperbee": "^1.6.3",
-    "hypercore": "^10.0.0-alpha.9",
+    "hypercore": "^10.0.0-alpha.10",
     "hyperswarm": "^3.0.0",
     "memorystream": "^0.3.1",
     "pump": "^3.0.0",
