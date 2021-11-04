@@ -50,3 +50,29 @@ test('Database - Test put/get', async t => {
     t.error(err)
   }
 })
+
+test('Database - delete from hyperbee', async t => {
+  t.plan(1)
+  
+  const keyPair = DHT.keyPair()
+  const encryptionKey = Buffer.alloc(32, 'hello world')
+
+  try {
+    const database = new Database(ram, {
+      keyPair,
+      encryptionKey
+    })
+
+    await database.ready()
+    
+    const collection = await database.collection('foobar')
+    await collection.put('foo', { hello: 'bar' })
+    await collection.del('foo')
+
+    const item = await collection.get('foo')
+
+    t.equals(item, null)
+  } catch (err) {
+    t.error(err)
+  }
+})
