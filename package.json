@@ -1,6 +1,6 @@
 {
   "name": "@telios/nebula-drive",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Real-time distributed file and data storage.",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
   "dependencies": {
     "@geut/hypercore-promise": "^2.1.1",
     "async": "^3.2.0",
-    "autobase": "^1.0.0-alpha.1",
+    "autobase": "1.0.0-alpha.1",
     "blakejs": "^1.1.0",
     "bson": "^4.5.0",
     "chokidar": "^3.5.1",
