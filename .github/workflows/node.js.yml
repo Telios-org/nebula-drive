@@ -27,6 +27,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
