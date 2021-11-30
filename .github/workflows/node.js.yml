@@ -25,6 +25,7 @@ jobs:
   publish:
     name: Publish Package
     needs: build
+    runs-on: ubuntu-latest
     steps:
       - run: npm publish
         env:
