@@ -78,6 +78,10 @@ class Drive extends EventEmitter {
         })
       })
     })
+
+    process.on('uncaughtException', err => {
+      // gracefully catch uncaught exceptions
+    })
   }
 
   async ready() {
@@ -111,7 +115,7 @@ class Drive extends EventEmitter {
 
       if (
         node.key !== '__peers' && !this._lastSeq ||
-        node.key !== '__peers' && this._lastSeq && data.seq > this._lastSeq
+        node.key !== '__peers' && this._lastSeq && data.seq > this._lastSeq.seq
       ) {
         await this._update(node)
       }
