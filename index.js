@@ -21,12 +21,12 @@ const HASH_OUTPUT_LENGTH = 32 // bytes
 const MAX_PLAINTEXT_BLOCK_SIZE = 65536
 const MAX_ENCRYPTED_BLOCK_SIZE = 65553
 const FILE_TIMEOUT = 10000 // How long to wait for the on data event when downloading a file from a remote drive.
-const FILE_RETRY_ATTEMPTS = 3 // How many parallel requests are made in each file request batch
-const FILE_BATCH_SIZE = 10
+const FILE_RETRY_ATTEMPTS = 2 // Fail to fetch file after 3 attempts
+const FILE_BATCH_SIZE = 10 // How many parallel requests are made in each file request batch
 
 
 class Drive extends EventEmitter {
-  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout }) {
+  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts }) {
     super()
 
     this.encryptionKey = encryptionKey
@@ -39,6 +39,7 @@ class Drive extends EventEmitter {
     this.keyPair = keyPair // ed25519 keypair to listen on
     this.writable = writable
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
+    this.fileRetryAttempts = fileRetryAttempts || FILE_RETRY_ATTEMPTS
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
 
     this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
@@ -403,7 +404,7 @@ class Drive extends EventEmitter {
   }
 
   async _initFileSwarm(stream, topic, fileHash, attempts, { keyPair }) {
-    if (attempts === FILE_RETRY_ATTEMPTS) {
+    if (attempts === this.fileRetryAttempts) {
       const err = new Error('Unable to make a connection or receive data within the allotted time.')
       err.fileHash = fileHash
       this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
@@ -448,7 +449,7 @@ class Drive extends EventEmitter {
     })
 
     setTimeout(async () => {
-      if (!connected || streamError || !receivedData && attempts < FILE_RETRY_ATTEMPTS) {
+      if (!connected || streamError || !receivedData && attempts < this.fileRetryAttempts) {
         attempts += 1
         await swarm.leave(topic)
         await swarm.destroy()
