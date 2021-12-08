@@ -186,7 +186,7 @@ Similar to how IPFS uses (content addressing)[https://proto.school/content-addre
 
 - `fileHash`: Hash of the file's contents. -->
 
-#### `const stream = drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
+#### `const stream = await drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
 
 Drives with many files may not want to announce every file by it's hash due to network bandwidth limits. In this case, a drive has the option of sharing it's `discoveryKey` which peers can use to connect to the drive and then make a request file hash request.
 

@@ -39,7 +39,7 @@ class Drive extends EventEmitter {
     this.keyPair = keyPair // ed25519 keypair to listen on
     this.writable = writable
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
-    this.fileRetryAttempts = fileRetryAttempts || FILE_RETRY_ATTEMPTS
+    this.fileRetryAttempts = fileRetryAttempts-1 || FILE_RETRY_ATTEMPTS-1
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
 
     this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
@@ -354,7 +354,7 @@ class Drive extends EventEmitter {
   fetchFileByHash(fileHash) {
   }
 
-  fetchFileByDriveHash(discoveryKey, fileHash, opts = {}) {
+  async fetchFileByDriveHash(discoveryKey, fileHash, opts = {}) {
     const keyPair = opts.keyPair || this.keyPair
     const memStream = new MemoryStream()
     const topic = blake.blake2bHex(discoveryKey, null, HASH_OUTPUT_LENGTH)
@@ -368,7 +368,14 @@ class Drive extends EventEmitter {
       return reject('Discovery key cannot be null and must be a string.')
     }
 
-    this._initFileSwarm(memStream, topic, fileHash, 0, { keyPair })
+    try {
+      await this._initFileSwarm(memStream, topic, fileHash, 0, { keyPair })
+    } catch(e) {      
+      setTimeout(() => {
+        memStream.destroy(e)
+      })
+      return memStream
+    }
 
     if (opts.key && opts.header) {
       return this.decryptFileStream(memStream, opts.key, opts.header)
@@ -387,7 +394,7 @@ class Drive extends EventEmitter {
         requests.push(new Promise(async (resolve, reject) => {
           if (file.discovery_key) {
             const keyPair = this._workerKeyPairs.getKeyPair()
-            const stream = this.fetchFileByDriveHash(file.discovery_key, file.hash, { key: file.key, header: file.header, keyPair })
+            const stream = await this.fetchFileByDriveHash(file.discovery_key, file.hash, { key: file.key, header: file.header, keyPair })
 
             await cb(stream, file)
 
@@ -404,59 +411,69 @@ class Drive extends EventEmitter {
   }
 
   async _initFileSwarm(stream, topic, fileHash, attempts, { keyPair }) {
-    if (attempts === this.fileRetryAttempts) {
-      const err = new Error('Unable to make a connection or receive data within the allotted time.')
-      err.fileHash = fileHash
-      this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
-      stream.destroy(err)
-    }
+    return new Promise((resolve, reject) => {
+      if (attempts > this.fileRetryAttempts) {
+        const err = new Error('Unable to make a connection or receive data within the allotted time.')
+        err.fileHash = fileHash
+        this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
+        stream.destroy(err)
+        return reject(err)
+      }
 
-    const swarm = new Hyperswarm({ keyPair })
+      const swarm = new Hyperswarm({ keyPair })
 
-    let connected = false
-    let receivedData = false
-    let streamError = false
+      let connected = false
+      let receivedData = false
+      let streamError = false
 
-    swarm.join(Buffer.from(topic, 'hex'), { server: false, client: true })
+      swarm.join(Buffer.from(topic, 'hex'), { server: false, client: true })
 
-    swarm.on('connection', async (socket, info) => {
-      receivedData = false
+      swarm.on('connection', async (socket, info) => {
+        receivedData = false
 
-      if (!connected) {
-        connected = true
+        if (!connected) {
+          connected = true
 
-        // Tell the host drive which file we want
-        socket.write(fileHash)
+          // Tell the host drive which file we want
+          socket.write(fileHash)
 
-        socket.on('data', (data) => {
-          stream.write(data)
-          receivedData = true
-        })
+          socket.on('data', (data) => {
+            resolve()
+            stream.write(data)
+            receivedData = true
+          })
 
-        socket.once('end', () => {
-          if (receivedData) {
-            this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
-            stream.end()
-            swarm.destroy()
+          socket.once('end', () => {
+            if (receivedData) {
+              this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
+              stream.end()
+              swarm.destroy()
+            }
+          })
+
+          socket.once('error', (err) => {
+            stream.destroy(err)
+            streamError = true
+            reject(err)
+          })
+        }
+      })
+
+      setTimeout(async () => {
+        if (!connected || streamError || !receivedData) {
+          attempts += 1
+          await swarm.leave(topic)
+          await swarm.destroy()
+
+          try {
+            await this._initFileSwarm(stream, topic, fileHash, attempts, { keyPair })
+            resolve()
+          } catch(e) {
+            reject(e)
           }
-        })
-
-        socket.once('error', (err) => {
-          stream.destroy(err)
-          streamError = true
-        })
-      }
+        }
+      }, this.fileTimeout)
     })
-
-    setTimeout(async () => {
-      if (!connected || streamError || !receivedData && attempts < this.fileRetryAttempts) {
-        attempts += 1
-        await swarm.leave(topic)
-        await swarm.destroy()
-
-        this._initFileSwarm(stream, topic, fileHash, attempts, { keyPair })
-      }
-    }, this.fileTimeout)
   }
 
   async unlink(filePath) {

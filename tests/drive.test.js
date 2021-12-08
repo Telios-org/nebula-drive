@@ -178,11 +178,21 @@ test('Drive - Fail to Fetch Files from Remote Drive', async t => {
   const file = await drive4.writeFile('/email/rawEmailEncrypted2.eml', readStream, { encrypted: true })
 
   await drive4.unlink(file.path)
-  const stream = drive5.fetchFileByDriveHash(drive4.discoveryKey, file.hash)
+  
+  await drive5.fetchFileBatch([file], (stream, file) => {
+    return new Promise((resolve, reject) => {
+      let content = ''
 
-  stream.on('error', err => {
-    t.ok(err.message, `Error has message: ${err.message}`)
-    t.equals(file.hash, err.fileHash, `Failed file hash matches the has in the request,`)
+      stream.on('data', chunk => {
+        content += chunk.toString()
+      })
+
+      stream.on('error', (err) => {
+        t.ok(err.message, `Error has message: ${err.message}`)
+        t.equals(file.hash, err.fileHash, `Failed file hash matches the has in the request,`)
+        resolve()
+      })
+    })
   })
 })
 
