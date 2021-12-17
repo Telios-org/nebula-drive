@@ -268,6 +268,15 @@ Emitted when a file has been deleted on the drive.
 
 Emitted when there has been an error downloading from the remote drive
 
+#### `drive.on('network-updated', (network) => {})`
+
+Emitted when either the internet connection or the drive's connection to Hyperswarm has changed
+
+Returns:
+- `network`
+  - `internet`: true|false
+  - `drive`: true|false
+
 #### `const collection = await drive.db.collection(name)`
 
 Creates a new key value collection. Collections are encrypted with the drive's `encryptionKey` (`drive.encryptionKey`) when the key is passed in during initialization.

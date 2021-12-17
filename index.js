@@ -16,6 +16,7 @@ const { v4: uuidv4 } = require('uuid')
 const FixedChunker = require('./util/fixedChunker.js')
 const RequestChunker = require('./util/requestChunker.js')
 const WorkerKeyPairs = require('./util/workerKeyPairs.js')
+const isOnline = require('is-online');
 
 const HASH_OUTPUT_LENGTH = 32 // bytes
 const MAX_PLAINTEXT_BLOCK_SIZE = 65536
@@ -41,6 +42,10 @@ class Drive extends EventEmitter {
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
     this.fileRetryAttempts = fileRetryAttempts-1 || FILE_RETRY_ATTEMPTS-1
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
+    this.network = {
+      internet: false,
+      drive: false
+    }
 
     this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
     this._swarm = null
@@ -49,6 +54,8 @@ class Drive extends EventEmitter {
     this._filesDir = path.join(drivePath, `./Files`)
     this._localHB = null // Local Key value datastore only. This db does not sync with remote drives.
     this._lastSeq = null
+    this._checkInternetInt = null
+    this._checkInternetInProgress = false
 
     if (!fs.existsSync(drivePath)) {
       fs.mkdirSync(drivePath)
@@ -83,6 +90,16 @@ class Drive extends EventEmitter {
     process.on('uncaughtException', err => {
       // gracefully catch uncaught exceptions
     })
+
+     // Periodically check this drive is connected to the internet.
+    // When internet is down, emit a network status updated event.
+    this._checkInternetInt = setInterval(async () => {
+      if(!this._checkInternetInProgress) {
+        this._checkInternetInProgress = true
+        await this._checkInternet();
+        this._checkInternetInProgress = false
+      }
+    }, 1500)
   }
 
   async ready() {
@@ -155,6 +172,21 @@ class Drive extends EventEmitter {
       isClient: this.swarmOpts.client,
       acl: this.swarmOpts.acl
     })
+
+    this._swarm.on('disconnected', () => {
+      if(this.network.drive) {
+        this.network.drive = false
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
+    this._swarm.on('connected', () => {
+      if(!this.network.drive) {
+        this.network.drive = true
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
 
     this._swarm.on('message', (peerPubKey, data) => {
       this.emit('message', peerPubKey, data)
@@ -476,6 +508,24 @@ class Drive extends EventEmitter {
     })
   }
 
+  async _checkInternet() {
+    return new Promise((resolve, reject) => {
+      isOnline().then((isOnline) => {
+        if(!isOnline && this.network.internet) {
+          this.network.internet = false
+          this.emit('network-updated', { internet: this.network.internet })
+        }
+
+        if(isOnline && !this.network.internet) {
+          this.network.internet = true
+          this.emit('network-updated', { internet: this.network.internet })
+        }
+
+        resolve()
+      })
+    })
+  }
+
   async unlink(filePath) {
     let fp = filePath
 
@@ -529,6 +579,20 @@ class Drive extends EventEmitter {
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,
       acl: this.swarmOpts.acl
+    })
+
+    this.database.on('disconnected', () => {
+      if(this.network.drive) {
+        this.network.drive = false
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
+    this.database.on('connected', () => {
+      if(!this.network.drive) {
+        this.network.drive = true
+        this.emit('network-updated', { drive: this.network.drive })
+      }
     })
 
     await this.database.ready()
@@ -596,6 +660,14 @@ class Drive extends EventEmitter {
     await this._swarm.close()
     await this.database.close()
     await this._localCore.close()
+    clearInterval(this._checkInternetInt)
+
+    this.network = {
+      internet: false,
+      drive: false
+    }
+
+    this.emit('network-updated', this.network)
 
     this.openend = false
   }
