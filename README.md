@@ -16,11 +16,10 @@ Nebula drives come with a handful of useful features like:
 - [x] Connect to drives behind corporate firewalls and mobile networks
 - [x] Create and share key value databases between peers
 - [x] Upgrade multiwriter to Hypercore v10
-- [x] Full text search
-- [ ] Share files by only their hash much like [IPFS](https://docs.ipfs.io/concepts/how-ipfs-works/)
+- [x] Build full text search indexes from encrypted Hypercores
 - [ ] Upgrade access control to limit sharing by a peer's public key
 - [ ] Turn an existing directory into a drive and watch for changes
-- [ ] Upgrade collections to be closer to MongoDB with [Hyperbeedeebee](https://github.com/RangerMauve/hyperbeedeebee)
+- [ ] Upgrade collections API with [Hyperbeedeebee](https://github.com/RangerMauve/hyperbeedeebee)
 
 ## Installation
 
