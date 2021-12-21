@@ -11,22 +11,24 @@ const Swarm = require('./lib/swarm')
 const stream = require('stream')
 const blake = require('blakejs')
 const Hyperswarm = require('hyperswarm')
+const HyperbeeMessages = require('hyperbee/lib/messages.js')
 const MemoryStream = require('memorystream')
 const { v4: uuidv4 } = require('uuid')
 const FixedChunker = require('./util/fixedChunker.js')
 const RequestChunker = require('./util/requestChunker.js')
 const WorkerKeyPairs = require('./util/workerKeyPairs.js')
+const isOnline = require('is-online');
 
 const HASH_OUTPUT_LENGTH = 32 // bytes
 const MAX_PLAINTEXT_BLOCK_SIZE = 65536
 const MAX_ENCRYPTED_BLOCK_SIZE = 65553
 const FILE_TIMEOUT = 10000 // How long to wait for the on data event when downloading a file from a remote drive.
-const FILE_RETRY_ATTEMPTS = 3 // How many parallel requests are made in each file request batch
-const FILE_BATCH_SIZE = 10
+const FILE_RETRY_ATTEMPTS = 2 // Fail to fetch file after 3 attempts
+const FILE_BATCH_SIZE = 10 // How many parallel requests are made in each file request batch
 
 
 class Drive extends EventEmitter {
-  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout }) {
+  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts }) {
     super()
 
     this.encryptionKey = encryptionKey
@@ -39,7 +41,12 @@ class Drive extends EventEmitter {
     this.keyPair = keyPair // ed25519 keypair to listen on
     this.writable = writable
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
+    this.fileRetryAttempts = fileRetryAttempts-1 || FILE_RETRY_ATTEMPTS-1
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
+    this.network = {
+      internet: false,
+      drive: false
+    }
 
     this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
     this._swarm = null
@@ -48,6 +55,8 @@ class Drive extends EventEmitter {
     this._filesDir = path.join(drivePath, `./Files`)
     this._localHB = null // Local Key value datastore only. This db does not sync with remote drives.
     this._lastSeq = null
+    this._checkInternetInt = null
+    this._checkInternetInProgress = false
 
     if (!fs.existsSync(drivePath)) {
       fs.mkdirSync(drivePath)
@@ -78,6 +87,20 @@ class Drive extends EventEmitter {
         })
       })
     })
+
+    process.on('uncaughtException', err => {
+      // gracefully catch uncaught exceptions
+    })
+
+     // Periodically check this drive is connected to the internet.
+    // When internet is down, emit a network status updated event.
+    this._checkInternetInt = setInterval(async () => {
+      if(!this._checkInternetInProgress) {
+        this._checkInternetInProgress = true
+        await this._checkInternet();
+        this._checkInternetInProgress = false
+      }
+    }, 1500)
   }
 
   async ready() {
@@ -101,36 +124,25 @@ class Drive extends EventEmitter {
 
     this._lastSeq = await this._localHB.get('lastSeq')
 
-    const stream = this.database.metaBase.createReadStream({ live: true })
-
+    // const stream = this.metadb.createReadStream({ live: true })
+    const stream = this.metadb.createReadStream({ live: true })
+    
     stream.on('data', async data => {
+      const op = HyperbeeMessages.Node.decode(data.value)
+
       const node = {
-        ...JSON.parse(data.value.toString()),
+        key: op.key.toString('utf8'),
+        value: JSON.parse(op.value.toString('utf8')),
         seq: data.seq
       }
 
       if (
         node.key !== '__peers' && !this._lastSeq ||
-        node.key !== '__peers' && this._lastSeq && data.seq > this._lastSeq
+        node.key !== '__peers' && this._lastSeq && data.seq > this._lastSeq.seq
       ) {
         await this._update(node)
       }
     })
-
-    // This stopped streaming async updates after migrating to autobase
-    // const hs = this.metadb.createHistoryStream({ live: true, gte: this._lastSeq ? -1 : 1 })
-
-    // hs.on('data', async data => {
-    //   this.emit('sync', data)
-    //   if (data.key !== '__peers') {
-    //     data.value = JSON.parse(data.value).value
-    //     await this._update(data)
-    //   }
-    // })
-
-    // hs.on('error', err => {
-    //   // catch get out of bounds errors
-    // })
 
     this.opened = true
   }
@@ -150,6 +162,21 @@ class Drive extends EventEmitter {
       isClient: this.swarmOpts.client,
       acl: this.swarmOpts.acl
     })
+
+    this._swarm.on('disconnected', () => {
+      if(this.network.drive) {
+        this.network.drive = false
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
+    this._swarm.on('connected', () => {
+      if(!this.network.drive) {
+        this.network.drive = true
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
 
     this._swarm.on('message', (peerPubKey, data) => {
       this.emit('message', peerPubKey, data)
@@ -349,7 +376,7 @@ class Drive extends EventEmitter {
   fetchFileByHash(fileHash) {
   }
 
-  fetchFileByDriveHash(discoveryKey, fileHash, opts = {}) {
+  async fetchFileByDriveHash(discoveryKey, fileHash, opts = {}) {
     const keyPair = opts.keyPair || this.keyPair
     const memStream = new MemoryStream()
     const topic = blake.blake2bHex(discoveryKey, null, HASH_OUTPUT_LENGTH)
@@ -363,7 +390,14 @@ class Drive extends EventEmitter {
       return reject('Discovery key cannot be null and must be a string.')
     }
 
-    this._initFileSwarm(memStream, topic, fileHash, 0, { keyPair })
+    try {
+      await this._initFileSwarm(memStream, topic, fileHash, 0, { keyPair })
+    } catch(e) {      
+      setTimeout(() => {
+        memStream.destroy(e)
+      })
+      return memStream
+    }
 
     if (opts.key && opts.header) {
       return this.decryptFileStream(memStream, opts.key, opts.header)
@@ -382,7 +416,7 @@ class Drive extends EventEmitter {
         requests.push(new Promise(async (resolve, reject) => {
           if (file.discovery_key) {
             const keyPair = this._workerKeyPairs.getKeyPair()
-            const stream = this.fetchFileByDriveHash(file.discovery_key, file.hash, { key: file.key, header: file.header, keyPair })
+            const stream = await this.fetchFileByDriveHash(file.discovery_key, file.hash, { key: file.key, header: file.header, keyPair })
 
             await cb(stream, file)
 
@@ -399,59 +433,87 @@ class Drive extends EventEmitter {
   }
 
   async _initFileSwarm(stream, topic, fileHash, attempts, { keyPair }) {
-    if (attempts === FILE_RETRY_ATTEMPTS) {
-      const err = new Error('Unable to make a connection or receive data within the allotted time.')
-      err.fileHash = fileHash
-      this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
-      stream.destroy(err)
-    }
+    return new Promise((resolve, reject) => {
+      if (attempts > this.fileRetryAttempts) {
+        const err = new Error('Unable to make a connection or receive data within the allotted time.')
+        err.fileHash = fileHash
+        this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
+        stream.destroy(err)
+        return reject(err)
+      }
 
-    const swarm = new Hyperswarm({ keyPair })
+      const swarm = new Hyperswarm({ keyPair })
 
-    let connected = false
-    let receivedData = false
-    let streamError = false
+      let connected = false
+      let receivedData = false
+      let streamError = false
 
-    swarm.join(Buffer.from(topic, 'hex'), { server: false, client: true })
+      swarm.join(Buffer.from(topic, 'hex'), { server: false, client: true })
 
-    swarm.on('connection', async (socket, info) => {
-      receivedData = false
+      swarm.on('connection', async (socket, info) => {
+        receivedData = false
 
-      if (!connected) {
-        connected = true
+        if (!connected) {
+          connected = true
 
-        // Tell the host drive which file we want
-        socket.write(fileHash)
+          // Tell the host drive which file we want
+          socket.write(fileHash)
 
-        socket.on('data', (data) => {
-          stream.write(data)
-          receivedData = true
-        })
+          socket.on('data', (data) => {
+            resolve()
+            stream.write(data)
+            receivedData = true
+          })
 
-        socket.once('end', () => {
-          if (receivedData) {
-            this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
-            stream.end()
-            swarm.destroy()
+          socket.once('end', () => {
+            if (receivedData) {
+              this._workerKeyPairs.release(keyPair.publicKey.toString('hex'))
+              stream.end()
+              swarm.destroy()
+            }
+          })
+
+          socket.once('error', (err) => {
+            stream.destroy(err)
+            streamError = true
+            reject(err)
+          })
+        }
+      })
+
+      setTimeout(async () => {
+        if (!connected || streamError || !receivedData) {
+          attempts += 1
+          await swarm.leave(topic)
+          await swarm.destroy()
+
+          try {
+            await this._initFileSwarm(stream, topic, fileHash, attempts, { keyPair })
+            resolve()
+          } catch(e) {
+            reject(e)
           }
-        })
-
-        socket.once('error', (err) => {
-          stream.destroy(err)
-          streamError = true
-        })
-      }
+        }
+      }, this.fileTimeout)
     })
+  }
 
-    setTimeout(async () => {
-      if (!connected || streamError || !receivedData && attempts < FILE_RETRY_ATTEMPTS) {
-        attempts += 1
-        await swarm.leave(topic)
-        await swarm.destroy()
+  async _checkInternet() {
+    return new Promise((resolve, reject) => {
+      isOnline().then((isOnline) => {
+        if(!isOnline && this.network.internet) {
+          this.network.internet = false
+          this.emit('network-updated', { internet: this.network.internet })
+        }
 
-        this._initFileSwarm(stream, topic, fileHash, attempts, { keyPair })
-      }
-    }, this.fileTimeout)
+        if(isOnline && !this.network.internet) {
+          this.network.internet = true
+          this.emit('network-updated', { internet: this.network.internet })
+        }
+
+        resolve()
+      })
+    })
   }
 
   async unlink(filePath) {
@@ -509,6 +571,20 @@ class Drive extends EventEmitter {
       acl: this.swarmOpts.acl
     })
 
+    this.database.on('disconnected', () => {
+      if(this.network.drive) {
+        this.network.drive = false
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
+    this.database.on('connected', () => {
+      if(!this.network.drive) {
+        this.network.drive = true
+        this.emit('network-updated', { drive: this.network.drive })
+      }
+    })
+
     await this.database.ready()
 
     this.db = this.database
@@ -521,14 +597,13 @@ class Drive extends EventEmitter {
     lastSeq = await this._localHB.get(`lastSeq`)
 
     if (!lastSeq) lastSeq = { value: { seq: null } }
-
+    this.emit('sync')
     if (
-      data.type === 'put' &&
       !data.value.deleted &&
       data.value.peer_key !== this.keyPair.publicKey.toString('hex') &&
       lastSeq.value.seq !== data.seq
     ) {
-      this.emit('sync')
+      
 
       if (data.value.hash) {
         try {
@@ -541,7 +616,6 @@ class Drive extends EventEmitter {
     }
 
     if (
-      data.type === 'put' &&
       data.value.deleted &&
       data.value.peer_key !== this.keyPair.publicKey.toString('hex')
     ) {
@@ -574,6 +648,14 @@ class Drive extends EventEmitter {
     await this._swarm.close()
     await this.database.close()
     await this._localCore.close()
+    clearInterval(this._checkInternetInt)
+
+    this.network = {
+      internet: false,
+      drive: false
+    }
+
+    this.emit('network-updated', this.network)
 
     this.openend = false
   }
