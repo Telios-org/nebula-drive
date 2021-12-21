@@ -133,9 +133,11 @@ const doc = await collection.get('p4')
 //   }
 // }
 
+// Build a full text search index from the title and text_body properties
 await collection.ftsIndex(['title', 'text_body'])
 
-const query = await collection.search("happy tree")
+// Query the index
+const query = await collection.search("happy tree", { limit: 10 })
 ```
 
 ## API / Examples
