@@ -29,6 +29,7 @@ npm i @telios/nebula-drive
 ## Usage
 
 ```js
+// Create a new drive and write new files to it
 const Drive = require('nebula-drive')
 
 const encryptionKey = Buffer.alloc(32, 'hello world')
@@ -65,6 +66,57 @@ localDrive.on('file-sync', file => {
 
 await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
+```
+
+```js
+// Create an encrypted and shared database with full text search
+const corpus = [
+  {
+    title: 'Painting 1',
+    text_body: "In your world you can create anything you desire."
+  },
+  {
+    title: 'Painting 2',
+    text_body: "I thought today we would make a happy little stream that's just running through the woods here."
+  },
+  {
+    title: 'Painting 3',
+    text_body: "See. We take the corner of the brush and let it play back-and-forth. No pressure. Just relax and watch it happen."
+  },
+  {
+    title: 'Painting 4',
+    text_body: "Just go back and put one little more happy tree in there. Without washing the brush, I'm gonna go right into some Van Dyke Brown."
+  },
+  {
+    title: 'Painting 5',
+    text_body: "Trees get lonely too, so we'll give him a little friend. If what you're doing doesn't make you happy - you're doing the wrong thing."
+  },
+  {
+    title: 'Painting 6',
+    text_body: "Son of a gun. We're not trying to teach you a thing to copy. We're just here to teach you a technique, then let you loose into the world."
+  }
+]
+
+const keyPair = DHT.keyPair()
+const encryptionKey = Buffer.alloc(32, 'hello world')
+
+const database = new Database(ram, {
+  keyPair,
+  encryptionKey,
+  fts: true
+})
+
+await database.ready()
+
+const collection = await database.collection('BobRoss')
+
+for(const text of corpus) {
+  await collection.put(uuid, text)
+}
+
+await collection.ftsIndex(['text_body', 'title'])
+
+const results = await collection.search("happy tree")
 ```
 
 ## API / Examples
@@ -186,7 +238,7 @@ Similar to how IPFS uses (content addressing)[https://proto.school/content-addre
 
 - `fileHash`: Hash of the file's contents. -->
 
-#### `const stream = drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
+#### `const stream = await drive.fetchFileByDriveHash(discoveryKey, fileHash, [opts])`
 
 Drives with many files may not want to announce every file by it's hash due to network bandwidth limits. In this case, a drive has the option of sharing it's `discoveryKey` which peers can use to connect to the drive and then make a request file hash request.
 
@@ -268,6 +320,17 @@ Emitted when a file has been deleted on the drive.
 
 Emitted when there has been an error downloading from the remote drive
 
+#### `drive.on('network-updated', (network) => {})`
+
+Emitted when either the internet connection or the drive's connection to Hyperswarm has changed
+
+Returns:
+- `network`
+  - `internet`: true|false
+  - `drive`: true|false
+
+## Drive Database API
+
 #### `const collection = await drive.db.collection(name)`
 
 Creates a new key value collection. Collections are encrypted with the drive's `encryptionKey` (`drive.encryptionKey`) when the key is passed in during initialization.
@@ -283,3 +346,22 @@ Get a document by it's key
 #### `await collection.del(key)`
 
 Deletes a document by it's key
+
+#### `await collection.ftsIndex([prop1, prop2, ...])`
+
+Create a full text search index from a collection's properties
+
+```js
+await collection.ftsIndex(['address', 'first_name', 'last_name'])
+```
+
+#### `const results = await collection.search(query, [opts])`
+
+Query a searchable index
+
+Options include:
+```js
+{ 
+  limit: 10 
+}
+```
