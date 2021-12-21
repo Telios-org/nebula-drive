@@ -133,7 +133,7 @@ const doc = await collection.get('p4')
 //   }
 // }
 
-// Build a full text search index from the title and text_body properties
+// Build a search index from the title and text_body properties
 await collection.ftsIndex(['title', 'text_body'])
 
 // Query the index
