@@ -7,14 +7,16 @@ Nebula drives are real-time distributed storage for files and key value database
 
 Nebula drives come with a handful of useful features like:
 - __Shareable over company firewalls and mobile networks__: The P2P network runs on [Hyperswarm](https://github.com/hyperswarm/hyperswarm) which has the ability to hole-punch through most company firewalls and mobile connections.
+- __Full Text Search__: Create encrypted full text search indexes on top of Hypercores.
 - __Access Control__: Control access to each file by sharing the file's hash and the drive's discovery key.
-- __Multiwriter__: Drives can have multiple peers with write access by sharing and adding eachother's diff keys.
+- __Multiwriter__: Drives can have multiple peers with write access by exchanging eachother's keys.
 - __Collections__: Along with files, drives can create and share simple key value btree databases built on [Hyperbee](https://github.com/hypercore-protocol/hyperbee). Collections also have the option to be encrypted with a secret key.
 
 ### TODOs:
 - [x] Connect to drives behind corporate firewalls and mobile networks
 - [x] Create and share key value databases between peers
 - [x] Upgrade multiwriter to Hypercore v10
+- [x] Full text search
 - [ ] Share files by only their hash much like [IPFS](https://docs.ipfs.io/concepts/how-ipfs-works/)
 - [ ] Upgrade access control to limit sharing by a peer's public key
 - [ ] Turn an existing directory into a drive and watch for changes
@@ -29,9 +31,15 @@ npm i @telios/nebula-drive
 ## Usage
 
 ```js
-// Create a new drive and write new files to it
+/******************************************************
+ * 
+ * Create a new drive and write encrypted files to it
+ * 
+ ******************************************************/
+
 const Drive = require('nebula-drive')
 
+// Optionally pass in an encryption key to encrypt the drive's databases
 const encryptionKey = Buffer.alloc(32, 'hello world')
 
 const localDrive = new Drive(__dirname + "/drive", null, { 
@@ -59,64 +67,75 @@ const remoteDrive = new Drive(__dirname + "/drive_remote", drivePubKey, {
 
 await remoteDrive.ready()
 
-
 localDrive.on('file-sync', file => {
   // Local drive has synced somefile.json from remote drive
 })
 
+// Write a non-encrypted file to the drive
 await remoteDrive.writeFile('/dest/path/on/drive/somefile.json', readableStream)
 
-```
+// Write anencrypted file to the drive
+await remoteDrive.writeFile('/dest/path/on/drive/someEncryptedFile.json', readableStream, { encrypted: true })
 
-```js
-// Create an encrypted and shared database with full text search
+
+/******************************************************************
+ * 
+ * Create an encrypted and shared database with full text search
+ * 
+ *****************************************************************/
 const corpus = [
   {
+    id: 'p1',
     title: 'Painting 1',
     text_body: "In your world you can create anything you desire."
   },
   {
+    id: 'p2',
     title: 'Painting 2',
     text_body: "I thought today we would make a happy little stream that's just running through the woods here."
   },
   {
+    id: 'p3',
     title: 'Painting 3',
     text_body: "See. We take the corner of the brush and let it play back-and-forth. No pressure. Just relax and watch it happen."
   },
   {
+    id: 'p4',
     title: 'Painting 4',
     text_body: "Just go back and put one little more happy tree in there. Without washing the brush, I'm gonna go right into some Van Dyke Brown."
   },
   {
+    id: 'p5',
     title: 'Painting 5',
     text_body: "Trees get lonely too, so we'll give him a little friend. If what you're doing doesn't make you happy - you're doing the wrong thing."
   },
   {
+    id: 'p6',
     title: 'Painting 6',
     text_body: "Son of a gun. We're not trying to teach you a thing to copy. We're just here to teach you a technique, then let you loose into the world."
   }
 ]
 
-const keyPair = DHT.keyPair()
-const encryptionKey = Buffer.alloc(32, 'hello world')
+const collection = await drive.db.collection('BobRoss')
 
-const database = new Database(ram, {
-  keyPair,
-  encryptionKey,
-  fts: true
-})
-
-await database.ready()
-
-const collection = await database.collection('BobRoss')
-
-for(const text of corpus) {
-  await collection.put(uuid, text)
+for(const data of corpus) {
+  await collection.put(data.id, { title: data.title, text_body: data.text_body })
 }
 
-await collection.ftsIndex(['text_body', 'title'])
+const doc = await collection.get('p4')
 
-const results = await collection.search("happy tree")
+// doc
+// {
+//   key: 'p4'
+//   value: {
+//     title: 'Painting 4',
+//     text_body: "Just go back and put one little more happy tree in there. Without washing the brush, I'm gonna go right into some Van Dyke Brown."
+//   }
+// }
+
+await collection.ftsIndex(['title', 'text_body'])
+
+const query = await collection.search("happy tree")
 ```
 
 ## API / Examples
@@ -213,7 +232,7 @@ Stop replicating with another drive peer.
 
 #### `const file = await drive.writeFile(path, readableStream, [opts])`
 
-Write a file from a readable stream. When choosing to encrypt a file, the encryption key will be passed back in the response. Each file is encrypted with a unique key which should be stored spearately.
+Write a file from a readable stream. When choosing to encrypt a file, the encryption key will be passed back in the response. Each file is encrypted with a unique key which should be stored separately.
 
 - `path`: Full path where the file resides on the local drive `dir/to/my/file.jpg`
 - `readableStream`: Any readableStream `fs.createReadableStream()`
