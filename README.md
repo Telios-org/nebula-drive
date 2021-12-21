@@ -82,6 +82,7 @@ await remoteDrive.writeFile('/dest/path/on/drive/someEncryptedFile.json', readab
  * Create an encrypted and shared database with full text search
  * 
  *****************************************************************/
+
 const corpus = [
   {
     id: 'p1',
