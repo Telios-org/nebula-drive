@@ -88,7 +88,8 @@ Options include:
   swarmOpts: { // Set server to true to start this drive as a server and announce its public key to the network
     server: true | false,
     client: true | false
-  }
+  },
+  checkNetworkStatus: true | false // Listen for when the drive's network status changes
 }
 ```
 
@@ -270,7 +271,7 @@ Emitted when there has been an error downloading from the remote drive
 
 #### `drive.on('network-updated', (network) => {})`
 
-Emitted when either the internet connection or the drive's connection to Hyperswarm has changed
+Emitted when either the internet connection or the drive's connection to Hyperswarm has changed. The drive option `checkNetworkStatus` must be set to true in order for these events to be emitted.
 
 Returns:
 - `network`

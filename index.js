@@ -27,7 +27,7 @@ const FILE_BATCH_SIZE = 10 // How many parallel requests are made in each file r
 
 
 class Drive extends EventEmitter {
-  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts }) {
+  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts, checkNetworkStatus }) {
     super()
 
     this.encryptionKey = encryptionKey
@@ -42,6 +42,7 @@ class Drive extends EventEmitter {
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
     this.fileRetryAttempts = fileRetryAttempts-1 || FILE_RETRY_ATTEMPTS-1
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
+    this.checkNetworkStatus = checkNetworkStatus
     this.network = {
       internet: false,
       drive: false
@@ -93,13 +94,15 @@ class Drive extends EventEmitter {
 
      // Periodically check this drive is connected to the internet.
     // When internet is down, emit a network status updated event.
-    this._checkInternetInt = setInterval(async () => {
-      if(!this._checkInternetInProgress) {
-        this._checkInternetInProgress = true
-        await this._checkInternet();
-        this._checkInternetInProgress = false
-      }
-    }, 1500)
+    if(this.checkNetworkStatus) {
+      this._checkInternetInt = setInterval(async () => {
+        if(!this._checkInternetInProgress) {
+          this._checkInternetInProgress = true
+          await this._checkInternet();
+          this._checkInternetInProgress = false
+        }
+      }, 1500)
+    }
   }
 
   async ready() {
@@ -173,19 +176,21 @@ class Drive extends EventEmitter {
       acl: this.swarmOpts.acl
     })
 
-    this._swarm.on('disconnected', () => {
-      if(this.network.drive) {
-        this.network.drive = false
-        this.emit('network-updated', { drive: this.network.drive })
-      }
-    })
+    if(this.checkNetworkStatus) {
+      this._swarm.on('disconnected', () => {
+        if(this.network.drive) {
+          this.network.drive = false
+          this.emit('network-updated', { drive: this.network.drive })
+        }
+      })
 
-    this._swarm.on('connected', () => {
-      if(!this.network.drive) {
-        this.network.drive = true
-        this.emit('network-updated', { drive: this.network.drive })
-      }
-    })
+      this._swarm.on('connected', () => {
+        if(!this.network.drive) {
+          this.network.drive = true
+          this.emit('network-updated', { drive: this.network.drive })
+        }
+      })
+    }
 
 
     this._swarm.on('message', (peerPubKey, data) => {
@@ -581,19 +586,21 @@ class Drive extends EventEmitter {
       acl: this.swarmOpts.acl
     })
 
-    this.database.on('disconnected', () => {
-      if(this.network.drive) {
-        this.network.drive = false
-        this.emit('network-updated', { drive: this.network.drive })
-      }
-    })
+    if(this.checkNetworkStatus) {
+      this.database.on('disconnected', () => {
+        if(this.network.drive) {
+          this.network.drive = false
+          this.emit('network-updated', { drive: this.network.drive })
+        }
+      })
 
-    this.database.on('connected', () => {
-      if(!this.network.drive) {
-        this.network.drive = true
-        this.emit('network-updated', { drive: this.network.drive })
-      }
-    })
+      this.database.on('connected', () => {
+        if(!this.network.drive) {
+          this.network.drive = true
+          this.emit('network-updated', { drive: this.network.drive })
+        }
+      })
+    }
 
     await this.database.ready()
 
@@ -660,14 +667,17 @@ class Drive extends EventEmitter {
     await this._swarm.close()
     await this.database.close()
     await this._localCore.close()
-    clearInterval(this._checkInternetInt)
 
-    this.network = {
-      internet: false,
-      drive: false
+    if(this.checkNetworkStatus) {
+      clearInterval(this._checkInternetInt)
+
+      this.network = {
+        internet: false,
+        drive: false
+      }
+
+      this.emit('network-updated', this.network)
     }
-
-    this.emit('network-updated', this.network)
 
     this.openend = false
   }
