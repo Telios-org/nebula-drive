@@ -6,7 +6,6 @@ const path = require('path')
 const del = require('del')
 const Drive = require('..')
 const EventEmitter = require('events')
-const eventEmitter = new EventEmitter()
 const DHT = require('@hyperswarm/dht')
 const ram = require('random-access-memory')
 

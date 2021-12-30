@@ -4,7 +4,7 @@ const getDirName = require('path').dirname
 const path = require('path')
 const Database = require('./lib/database')
 const Hyperbee = require('hyperbee')
-const Hypercore = require('hypercore')
+const Hypercore = require('./lib/core')
 const pump = require('pump')
 const Crypto = require('./lib/crypto')
 const Swarm = require('./lib/swarm')
@@ -49,7 +49,7 @@ class Drive extends EventEmitter {
       drive: false
     }
 
-    this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`))
+    this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`), { storageNamespace: `${this.drivePath}:local-core` })
     this._swarm = null
     this._workerKeyPairs = new WorkerKeyPairs(FILE_BATCH_SIZE)
     this._collections = {}
@@ -582,6 +582,7 @@ class Drive extends EventEmitter {
 
     this.database = new Database(this.storage || this.drivePath, {
       keyPair: this.keyPair,
+      drivePath: this.drivePath,
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,
       acl: this.swarmOpts.acl
