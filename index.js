@@ -27,9 +27,10 @@ const FILE_BATCH_SIZE = 10 // How many parallel requests are made in each file r
 
 
 class Drive extends EventEmitter {
-  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts, checkNetworkStatus }) {
+  constructor(drivePath, peerPubKey, { storage, keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts, checkNetworkStatus }) {
     super()
 
+    this.storage = storage
     this.encryptionKey = encryptionKey
     this.database = null;
     this.db = null;
@@ -48,7 +49,7 @@ class Drive extends EventEmitter {
       drive: false
     }
 
-    this._localCore = new Hypercore(path.join(drivePath, `./LocalCore`))
+    this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`))
     this._swarm = null
     this._workerKeyPairs = new WorkerKeyPairs(FILE_BATCH_SIZE)
     this._collections = {}
@@ -579,7 +580,7 @@ class Drive extends EventEmitter {
       valueEncoding: 'json'
     })
 
-    this.database = new Database(this.drivePath, {
+    this.database = new Database(this.storage || this.drivePath, {
       keyPair: this.keyPair,
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,

@@ -8,6 +8,7 @@ const Drive = require('..')
 const EventEmitter = require('events')
 const eventEmitter = new EventEmitter()
 const DHT = require('@hyperswarm/dht')
+const ram = require('random-access-memory')
 
 // const { signingKeypair } = Account.makeKeys()
 
@@ -35,6 +36,7 @@ test('Drive - Create', async t => {
   await cleanup()
 
   drive = new Drive(__dirname + '/drive', null, {
+    storage: ram,
     keyPair,
     encryptionKey,
     swarmOpts: {
