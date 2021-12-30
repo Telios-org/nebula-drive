@@ -50,9 +50,10 @@ class Drive extends EventEmitter {
     }
 
     // When using custom storage, Transform drive path into beginning of the storage namespace
-    const storageName = drivePath.slice(drivePath.lastIndexOf('/') + 1, drivePath.length)
+    this.storageName = drivePath.slice(drivePath.lastIndexOf('/') + 1, drivePath.length)
+  
 
-    this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`), { storageNamespace: `${storageName}:local-core` })
+    this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`), { storageNamespace: `${this.storageName}:local-core` })
     this._swarm = null
     this._workerKeyPairs = new WorkerKeyPairs(FILE_BATCH_SIZE)
     this._collections = {}
@@ -585,7 +586,7 @@ class Drive extends EventEmitter {
 
     this.database = new Database(this.storage || this.drivePath, {
       keyPair: this.keyPair,
-      drivePath: this.drivePath,
+      storageName: this.storageName,
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,
       acl: this.swarmOpts.acl
