@@ -50,7 +50,7 @@ class Drive extends EventEmitter {
     }
 
     // When using custom storage, Transform drive path into beginning of the storage namespace
-    const storageName = drivePath.slice(str.lastIndexOf('/') + 1, drivePath.length)
+    const storageName = drivePath.slice(drivePath.lastIndexOf('/') + 1, drivePath.length)
 
     this._localCore = new Hypercore(this.storage || path.join(drivePath, `./LocalCore`), { storageNamespace: `${storageName}:local-core` })
     this._swarm = null
