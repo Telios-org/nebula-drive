@@ -647,7 +647,9 @@ class Drive extends EventEmitter {
    * Close drive and disconnect from all Hyperswarm topics
    */
   async close() {
-    await this._swarm.close()
+    if(this.joinSwarm) {
+      await this._swarm.close()
+    }
     await this.database.close()
     await this._localCore.close()
     clearInterval(this._checkInternetInt)
