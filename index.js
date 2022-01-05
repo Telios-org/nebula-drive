@@ -28,7 +28,7 @@ const FILE_BATCH_SIZE = 10 // How many parallel requests are made in each file r
 
 
 class Drive extends EventEmitter {
-  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts }) {
+  constructor(drivePath, peerPubKey, { keyPair, writable, swarmOpts, encryptionKey, fileTimeout, fileRetryAttempts, joinSwarm }) {
     super()
 
     this.encryptionKey = encryptionKey
@@ -43,6 +43,7 @@ class Drive extends EventEmitter {
     this.fileTimeout = fileTimeout || FILE_TIMEOUT
     this.fileRetryAttempts = fileRetryAttempts-1 || FILE_RETRY_ATTEMPTS-1
     this.requestQueue = new RequestChunker(null, FILE_BATCH_SIZE)
+    this.joinSwarm = typeof joinSwarm === 'boolean' ? joinSwarm : true
     this.network = {
       internet: false,
       drive: false
@@ -118,7 +119,7 @@ class Drive extends EventEmitter {
     // that are sharing the same drive secret
     this._collections.files = await this.database.collection('file')
 
-    if (this.keyPair) {
+    if (this.keyPair && this.joinSwarm) {
       await this.connect()
     }
 
@@ -568,7 +569,8 @@ class Drive extends EventEmitter {
       keyPair: this.keyPair,
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,
-      acl: this.swarmOpts.acl
+      acl: this.swarmOpts.acl,
+      joinSwarm: this.joinSwarm
     })
 
     this.database.on('disconnected', () => {
