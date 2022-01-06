@@ -569,7 +569,7 @@ class Drive extends EventEmitter {
       keyPair: this.keyPair,
       encryptionKey: this.encryptionKey,
       peerPubKey: this.peerPubKey,
-      acl: this.swarmOpts.acl,
+      acl: this.swarmOpts && this.swarmOpts.acl ? this.swarmOpts.acl : null,
       joinSwarm: this.joinSwarm
     })
 
