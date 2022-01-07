@@ -1,7 +1,8 @@
 # Nebula Drive
 
-
 ![Build Status](https://github.com/Telios-org/nebula-drive/actions/workflows/node.js.yml/badge.svg)
+
+#### ⚠️ This version has been deprecated and is no longer supported. Please visit the latest version [here](https://github.com/Telios-org/nebula) ⚠️
 
 Nebula drives are real-time distributed storage for files and key value databases built on top of [Hypercore Protocol](https://hypercore-protocol.org/). This project exists because the [Telios](https://telios.io) email client needed a way to distribute and store encrypted emails on user's local file systems over a peer-to-peer (P2P) network. A lot of inspiration was taken from [Hyperdrive](https://github.com/hypercore-protocol/hyperdrive), but Hyperdrive didn't have options for fine-grain access control, multiple writers, and the ability to delete files from disk once added to the drives.
 
